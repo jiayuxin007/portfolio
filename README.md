@@ -29,7 +29,7 @@ python -m http.server 8777
 
 | 平台 | 地址 | 配置要点 |
 | --- | --- | --- |
-| **Vercel（主）** | <https://portfolio-theta-steel-78.vercel.app> | 项目 `jiayuxin/portfolio`；`vercel.json` 里配了静态资源缓存头和 `/piano.html → /` 的 307；`.vercelignore` 挡住 `works/` 那个 193MB 成片 |
+| **Vercel（主）** | <https://jiayuxin.vercel.app> | 项目 `jiayuxin`（team `jiayuxin`）；`vercel.json` 里配了静态资源缓存头和 `/piano.html → /` 的 307；`.vercelignore` 挡住 `works/` 那个 193MB 成片 |
 | GitHub Pages（镜像） | <https://jiayuxin007.github.io/portfolio/> | 仓库 Settings → Pages，源 = `main` 分支根目录 |
 
 Vercel 上重新部署：
@@ -40,16 +40,17 @@ npx vercel@latest deploy --prod --yes --archive=tgz --scope jiayuxin
 
 ### 自定义域名
 
-`jiayuxin.com` 绑在 Vercel 上，`www` 是主域，apex 308 跳到 www。DNS 记录（阿里云云解析）：
+目前用 Vercel 免费送的二级域名 `jiayuxin.vercel.app`，**没有买独立域名**。
+（`jiayuxin.com` 是别人 2011 年就注册的，不属于本项目，别指向它；`jiayuxin.space` 目前未被注册。）
+
+以后买了域名，在阿里云/腾讯云云解析里加这几条，就能接上 Vercel：
 
 | 记录类型 | 主机记录 | 记录值 |
 | --- | --- | --- |
-| CNAME | `www` | `ac07900c02b6c08a.vercel-dns-017.com` |
-| A | `@` | `216.198.79.1` |
-| A | `@` | `64.29.17.1` |
-| A | `@` | `76.76.21.21` |
+| CNAME | `www` | 到 Vercel 项目 Settings → Domains 里复制（形如 `xxxxx.vercel-dns-017.com`） |
 
-记录值以 Vercel 项目 Settings → Domains 页面显示的为准（项目专属，和别的项目不通用）。
+apex（`@`）用 A 记录，值同样在该页面给出（现在是一组 Vercel anycast IP）。
+记录值**项目专属**，和别的项目不通用；建议 `www` 作主域、apex 308 跳到 `www`。
 自定义域名**只绑一个平台**：两个平台同时绑同一个域，会互抢 CNAME 和 `_acme-challenge` 记录，导致证书反复校验失败。
 
 ## 素材
