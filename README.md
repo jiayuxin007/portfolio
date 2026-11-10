@@ -29,9 +29,27 @@ python -m http.server 8777
 
 | 平台 | 地址 | 配置要点 |
 | --- | --- | --- |
-| GitHub Pages | <https://jiayuxin007.github.io/portfolio/> | 仓库 Settings → Pages，源 = `main` 分支根目录（已开） |
-| Vercel | 导入本仓库后自动分配 `*.vercel.app` | `vercel.json` 里配了静态资源缓存头和 `/piano.html → /` 的重定向；`.vercelignore` 挡住 `works/` 那个 193MB 成片 |
+| **Vercel（主）** | <https://portfolio-theta-steel-78.vercel.app> | 项目 `jiayuxin/portfolio`；`vercel.json` 里配了静态资源缓存头和 `/piano.html → /` 的 307；`.vercelignore` 挡住 `works/` 那个 193MB 成片 |
+| GitHub Pages（镜像） | <https://jiayuxin007.github.io/portfolio/> | 仓库 Settings → Pages，源 = `main` 分支根目录 |
 
+Vercel 上重新部署：
+
+```powershell
+npx vercel@latest deploy --prod --yes --archive=tgz --scope jiayuxin
+```
+
+### 自定义域名
+
+`jiayuxin.com` 绑在 Vercel 上，`www` 是主域，apex 308 跳到 www。DNS 记录（阿里云云解析）：
+
+| 记录类型 | 主机记录 | 记录值 |
+| --- | --- | --- |
+| CNAME | `www` | `ac07900c02b6c08a.vercel-dns-017.com` |
+| A | `@` | `216.198.79.1` |
+| A | `@` | `64.29.17.1` |
+| A | `@` | `76.76.21.21` |
+
+记录值以 Vercel 项目 Settings → Domains 页面显示的为准（项目专属，和别的项目不通用）。
 自定义域名**只绑一个平台**：两个平台同时绑同一个域，会互抢 CNAME 和 `_acme-challenge` 记录，导致证书反复校验失败。
 
 ## 素材

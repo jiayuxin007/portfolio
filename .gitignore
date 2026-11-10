@@ -16,3 +16,4 @@ desktop.ini
 #   git lfs track "works/video/*.mp4"
 #   git add .gitattributes works/video
 works/video/*.mp4
+.vercel
