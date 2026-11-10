@@ -23,6 +23,17 @@ python -m http.server 8777
 
 然后访问 <http://localhost:8777/>（首页就是钢琴装置）。
 
+## 部署
+
+代码改完 `git push` 后，两个平台各自重建，互不影响：
+
+| 平台 | 地址 | 配置要点 |
+| --- | --- | --- |
+| GitHub Pages | <https://jiayuxin007.github.io/portfolio/> | 仓库 Settings → Pages，源 = `main` 分支根目录（已开） |
+| Vercel | 导入本仓库后自动分配 `*.vercel.app` | `vercel.json` 里配了静态资源缓存头和 `/piano.html → /` 的重定向；`.vercelignore` 挡住 `works/` 那个 193MB 成片 |
+
+自定义域名**只绑一个平台**：两个平台同时绑同一个域，会互抢 CNAME 和 `_acme-challenge` 记录，导致证书反复校验失败。
+
 ## 素材
 
 - `asset/model/grand-piano.glb`（15.7 MB）—— 钢琴点云的采样源，首页 `index.html` 必需；缺失时页面会给出兜底提示
