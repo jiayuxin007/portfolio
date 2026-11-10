@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>星空视频素材候选 · Jia Yuxin</title>
+
+  <style>
+    :root {
+      --bg: #050505;
+      --fg: #e9e6e1;
+      --dim: #8b8781;
+      --dim-2: #b4afa7;
+      --line: rgba(255, 255, 255, 0.12);
+      --line-soft: rgba(255, 255, 255, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background-color: var(--bg); }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: "Helvetica Neue", "Inter", system-ui, -apple-system,
+        "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.75;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; }
+
+    .wrap {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 28px;
+    }
+
+    /* ---------- 页头 ---------- */
+    .page-head {
+      padding: 84px 0 44px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .eyebrow {
+      margin: 0 0 22px;
+      font-size: 11px;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    h1 {
+      margin: 0 0 20px;
+      font-size: clamp(26px, 3.4vw, 40px);
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      line-height: 1.3;
+    }
+
+    .lede {
+      max-width: 62ch;
+      margin: 0 0 30px;
+      font-size: 14.5px;
+      color: var(--dim-2);
+    }
+
+    .notes {
+      max-width: 78ch;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: 13px;
+      color: var(--dim);
+    }
+
+    .notes li {
+      position: relative;
+      padding-left: 22px;
+      margin-bottom: 8px;
+    }
+
+    .notes li::before {
+      content: "\2014";
+      position: absolute;
+      left: 0;
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .notes strong { color: var(--fg); font-weight: 500; }
+
+    .notes a {
+      color: var(--fg);
+      text-decoration: none;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 1px;
+    }
+
+    .notes a:hover { border-color: rgba(255, 255, 255, 0.4); }
+
+    code {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 12.5px;
+      padding: 1px 5px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      color: var(--dim-2);
+    }
+
+    /* ---------- 条目 ---------- */
+    .item {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 30px;
+      padding: 40px 0;
+      border-bottom: 1px solid var(--line-soft);
+      align-items: start;
+    }
+
+    .preview {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border: 1px solid var(--line-soft);
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .item.is-vertical .preview {
+      aspect-ratio: 9 / 16;
+      max-width: 300px;
+    }
+
+    .clip {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.92;
+      transition: opacity 0.4s ease;
+    }
+
+    .preview:hover .clip { opacity: 1; }
+
+    .rank {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      padding: 2px 9px;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      color: var(--fg);
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(6px);
+    }
+
+    .pick {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 2px 9px;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      border: 1px solid var(--line);
+      color: var(--dim-2);
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(6px);
+    }
+
+    .pick[data-level="首选"] {
+      color: #12100e;
+      background: #e6e0d4;
+      border-color: #e6e0d4;
+    }
+
+    .preview::after {
+      content: "点按暂停 / 播放";
+      position: absolute;
+      left: 50%;
+      bottom: 14px;
+      transform: translateX(-50%);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      color: var(--fg);
+      background: rgba(0, 0, 0, 0.5);
+      padding: 3px 10px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    .preview:hover::after { opacity: 0.85; }
+
+    .preview.is-paused::before {
+      content: "已暂停";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      color: var(--dim-2);
+      background: rgba(0, 0, 0, 0.35);
+      pointer-events: none;
+    }
+
+    /* ---------- 信息 ---------- */
+    .info h2 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 500;
+      line-height: 1.4;
+      letter-spacing: 0.005em;
+    }
+
+    .cn {
+      display: block;
+      margin-top: 6px;
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      color: var(--dim);
+    }
+
+    .desc {
+      margin: 16px 0 0;
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--dim-2);
+    }
+
+    .desc em {
+      font-style: normal;
+      color: var(--dim);
+      letter-spacing: 0.08em;
+      margin-right: 6px;
+    }
+
+    .mine {
+      margin: 18px 0 0;
+      padding-left: 13px;
+      border-left: 2px solid rgba(255, 255, 255, 0.22);
+      font-size: 13.5px;
+      color: var(--fg);
+    }
+
+    .mine strong { font-weight: 500; color: #fff; }
+
+    .specs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px 22px;
+      margin: 20px 0 0;
+      padding: 16px 0 0;
+      list-style: none;
+      border-top: 1px solid var(--line-soft);
+      font-size: 12.5px;
+      color: var(--dim-2);
+    }
+
+    .specs span {
+      display: block;
+      font-size: 10.5px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 1px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 7px 15px;
+      font-size: 12.5px;
+      letter-spacing: 0.04em;
+      color: var(--fg);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      transition: background 0.25s ease, border-color 0.25s ease;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 255, 255, 0.26);
+    }
+
+    .btn.ghost { color: var(--dim-2); }
+
+    .src {
+      margin-left: auto;
+      font-size: 12.5px;
+      color: var(--dim);
+      text-decoration: none;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 1px;
+    }
+
+    .src:hover { color: var(--fg); border-color: rgba(255, 255, 255, 0.4); }
+
+    /* ---------- 页脚 ---------- */
+    .page-foot {
+      margin-top: 20px;
+      padding: 56px 0 96px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--dim);
+    }
+
+    .page-foot h2 {
+      margin: 0 0 14px;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--dim-2);
+    }
+
+    .page-foot p { margin: 0 0 10px; max-width: 76ch; }
+
+    .page-foot a {
+      color: var(--dim-2);
+      text-decoration: none;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .page-foot a:hover { color: var(--fg); }
+
+    /* ---------- 第二轮分区 ---------- */
+    .round-head {
+      padding: 76px 0 4px;
+      border-top: 1px solid var(--line);
+    }
+
+    .round-head h2 {
+      margin: 0 0 18px;
+      font-size: clamp(21px, 2.5vw, 29px);
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      line-height: 1.35;
+    }
+
+    .metrics-scroll { overflow-x: auto; margin-top: 28px; }
+
+    .metrics {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+      color: var(--dim-2);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metrics caption {
+      padding-bottom: 12px;
+      text-align: left;
+      font-size: 10.5px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    .metrics th,
+    .metrics td {
+      padding: 8px 16px 8px 0;
+      text-align: left;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .metrics th {
+      font-size: 10.5px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    .metrics td:nth-child(1) { color: var(--fg); }
+    .metrics tr.is-out td { color: var(--dim); }
+    .metrics tr.is-out td:nth-child(1) { color: var(--dim); }
+
+    .grade {
+      margin: 26px 0 0;
+      padding: 18px 20px;
+      border: 1px solid var(--line-soft);
+      background: rgba(255, 255, 255, 0.02);
+      font-size: 12.5px;
+      line-height: 1.75;
+      color: var(--dim-2);
+    }
+
+    .grade strong { color: var(--fg); font-weight: 500; }
+
+    .grade pre {
+      margin: 12px 0 0;
+      overflow-x: auto;
+      line-height: 1.65;
+    }
+
+    .grade code {
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--fg);
+      font-size: 12px;
+    }
+
+    @media (max-width: 780px) {
+      .wrap { padding: 0 20px; }
+      .page-head { padding: 56px 0 32px; }
+      .round-head { padding: 52px 0 4px; }
+      .metrics { font-size: 11.5px; }
+      .metrics th, .metrics td { padding-right: 12px; }
+      .item { grid-template-columns: 1fr; gap: 20px; padding: 32px 0; }
+      .item.is-vertical .preview { max-width: 230px; }
+      .src { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="page-head">
+    <div class="wrap">
+      <p class="eyebrow">Reference &middot; Starfield Video Shortlist</p>
+      <h1>星空 / 星云视频素材 · 候选清单</h1>
+      <p class="lede">
+        按你的要求筛的：黑色主调、星星与星云数量克制、画面缓慢移动、整体安静。
+        共 <strong>23 条</strong>，分两轮：<strong>01–15</strong> 是「星空 / 星云」的氛围，
+        <strong>16–23</strong> 是按后来的要求重筛的「更冷、更干净、元素更少」。
+        全部来自 Mixkit（免费素材站），每条的视频直链与缩略图我都逐条验证过可以正常加载。
+      </p>
+      <ul class="notes">
+        <li><strong>★ 首选</strong> 的几条最接近你描述的感觉，第一轮先看 01–03，第二轮先看 16–18。</li>
+        <li><strong>第二轮</strong>：<a href="#round-2">清冷 / 极简 / 像钢琴的 8 条 →</a>（每条都附了我用 ffmpeg 抽帧测出的冷调、留白、杂乱度数据）。</li>
+        <li><strong>授权</strong>：Mixkit Free License 的视频可免费商用、无需署名；标 <strong>Restricted</strong> 的条目为 Mixkit Restricted License，条款更严格，正式使用前请回官方页面核对。</li>
+        <li><strong>使用</strong>：点画面可暂停/继续；滚出屏幕的视频会自动暂停，避免同时播十几个导致卡顿。</li>
+        <li><strong>下一步</strong>：你选定后，我可以把它下载到 <code>asset/video/</code> 并替换进首页背景，这样就不依赖外网了。</li>
+      </ul>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <article class="item">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/10408/10408-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/10408/10408-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Nebula in dark space"></video>
+        <span class="rank">01</span>
+        <span class="pick" data-level="首选">★ 首选</span>
+      </div>
+      <div class="info">
+        <h2>Nebula in dark space<span class="cn">暗空间中的星云</span></h2>
+        <p class="desc"><em>官方描述</em>Nebula in dark space, surrounded by numerous stars of different colors and sizes, seen through a slowly moving dust cloud.</p>
+        <p class="mine">隔着缓慢流动的尘埃云看星云，星星大小颜色各异但分布克制，整体压得很暗、运动幅度极小 —— 几乎就是你描述的那个感觉。</p>
+        <ul class="specs">
+          <li><span>规格</span>1920 × 1080 · 24 fps</li>
+          <li><span>时长 / 构图</span>11.2 秒 · 横屏 16:9</li>
+          <li><span>授权</span>Mixkit Free License</li>
+          <li><span>文件体积</span>720p 3.6 MB / 1080p 34.5 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn" href="https://assets.mixkit.co/videos/10408/10408-1080.mp4" target="_blank" rel="noopener">1080p 下载</a>
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/10408/10408-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/nebula-in-dark-space-10408/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/jb80dnjmmeuf4p32xws1byni2uty"
+               data-src="https://assets.mixkit.co/ykoq7royeqd38495166ldaciowon"
+               muted loop playsinline preload="none" aria-label="预览：Dark Starry Night"></video>
+        <span class="rank">02</span>
+        <span class="pick" data-level="首选">★ 首选</span>
+      </div>
+      <div class="info">
+        <h2>Dark Starry Night<span class="cn">深色的星夜</span></h2>
+        <p class="desc"><em>官方描述</em>A dark starry night, filled with twinkling stars. Perfect for creating a tranquil, dreamy vibe or adding a touch of mystery to any project.</p>
+        <p class="mine">纯黑底 + 细碎微闪的星点，没有星云、没有强运动，是最“安静”的一条；缺点是变化少，主线内容要靠你自己叠上去。</p>
+        <ul class="specs">
+          <li><span>规格</span>1920 × 1080 · 24 fps</li>
+          <li><span>时长 / 构图</span>11.0 秒 · 横屏 16:9</li>
+          <li><span>授权</span>Mixkit Free License</li>
+          <li><span>文件体积</span>只有一个档：1080p 35.7 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn" href="https://assets.mixkit.co/ykoq7royeqd38495166ldaciowon" target="_blank" rel="noopener">1920×1080 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/dark-starry-night-100823/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/1610/1610-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/1610/1610-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Stars in space background"></video>
+        <span class="rank">03</span>
+        <span class="pick" data-level="首选">★ 首选</span>
+      </div>
+      <div class="info">
+        <h2>Stars in space background<span class="cn">太空中的星空背景</span></h2>
+        <p class="desc"><em>官方描述</em>Stars moving slowing through space（原文如此，意为“星星在太空中缓慢移动”）。</p>
+        <p class="mine">星星整体缓慢漂移，有轻微景深，30 秒是这批里最长的，做整站背景循环时最不容易看出接缝。色彩比前两条略丰富一点。</p>
+        <ul class="specs">
+          <li><span>规格</span>1920 × 1080 · 30 fps</li>
+          <li><span>时长 / 构图</span>30.0 秒 · 横屏 16:9</li>
+          <li><span>授权</span>Mixkit Free License</li>
+          <li><span>文件体积</span>720p 10.0 MB / 1080p 82.7 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn" href="https://assets.mixkit.co/videos/1610/1610-1080.mp4" target="_blank" rel="noopener">1080p 下载</a>
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/1610/1610-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/stars-in-space-background-1610/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/14151/14151-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/14151/14151-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Traveling between the stars and nebulae"></video>
+        <span class="rank">04</span>
+        <span class="pick" data-level="备选">备选</span>
+      </div>
+      <div class="info">
+        <h2>Traveling between the stars and nebulae<span class="cn">在星星与星云之间穿行</span></h2>
+        <p class="desc"><em>官方描述</em>3D animation showcasing the journey of traveling between stars and nebulae.</p>
+        <p class="mine">相机缓慢前行的 3D 动画，星云集中在画面中部，黑场比例大。适合想带一点“空间纵深”的版本，但比纯星空更抢戏。</p>
+        <ul class="specs">
+          <li><span>规格</span>1280 × 720 · 25 fps</li>
+          <li><span>时长 / 构图</span>15.0 秒 · 横屏 16:9</li>
+          <li><span>授权</span>Mixkit Restricted License</li>
+          <li><span>文件体积</span>仅 720p · 5.5 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/14151/14151-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/traveling-between-the-stars-and-nebulae-14151/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/14145/14145-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/14145/14145-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Traversing the nebula galaxy"></video>
+        <span class="rank">05</span>
+        <span class="pick" data-level="备选">备选</span>
+      </div>
+      <div class="info">
+        <h2>Traversing the nebula galaxy<span class="cn">穿越星云星系</span></h2>
+        <p class="desc"><em>官方描述</em>官方未提供文字描述，标题即内容。</p>
+        <p class="mine">同样是缓慢穿越星云的第一人称镜头，星云更浓、更亮一些，宁静感弱于 04，但画面更“满”。</p>
+        <ul class="specs">
+          <li><span>规格</span>1280 × 720 · 25 fps</li>
+          <li><span>时长 / 构图</span>15.0 秒 · 横屏 16:9</li>
+          <li><span>授权</span>Mixkit Restricted License</li>
+          <li><span>文件体积</span>仅 720p · 4.7 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/14145/14145-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/traversing-the-nebula-galaxy-14145/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/14185/14185-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/14185/14185-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Impressive space nebula"></video>
+        <span class="rank">06</span>
+        <span class="pick" data-level="备选">备选</span>
+      </div>
+      <div class="info">
+        <h2>Impressive space nebula<span class="cn">壮观的太空星云</span></h2>
+        <p class="desc"><em>官方描述</em>官方未提供文字描述，标题即内容。</p>
+        <p class="mine">星云体量大、移动很慢，但占画面比例高，黑白对比没 01 那么克制；想要“一眼看到星云”的话可以选它。</p>
+        <ul class="specs">
+          <li><span>规格</span>1280 × 720</li>
+          <li><span>时长 / 构图</span>15.0 秒 · 横屏 16:9</li>
+          <li><span>授权</span>Mixkit Restricted License</li>
+          <li><span>文件体积</span>仅 720p · 4.7 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/14185/14185-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/impressive-space-nebula-14185/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/4148/4148-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/4148/4148-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Milky way seen at night"></video>
+        <span class="rank">07</span>
+        <span class="pick" data-level="备选">备选</span>
+      </div>
+      <div class="info">
+        <h2>Milky way seen at night<span class="cn">夜观银河</span></h2>
+        <p class="desc"><em>官方描述</em>Milky Way seen in the clear sky on a star-filled night with mountain silhouettes at the bottom of the video.</p>
+        <p class="mine">实拍银河，底部有山影轮廓，真实感最强；山影可以当画面下缘的“地基”，但也意味着它不是纯黑虚空。</p>
+        <ul class="specs">
+          <li><span>规格</span>1920 × 1080 · 30 fps</li>
+          <li><span>时长 / 构图</span>16.2 秒 · 横屏 16:9</li>
+          <li><span>授权</span>Mixkit Free License</li>
+          <li><span>文件体积</span>720p 5.2 MB / 1080p 60.0 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn" href="https://assets.mixkit.co/videos/4148/4148-1080.mp4" target="_blank" rel="noopener">1080p 下载</a>
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/4148/4148-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/milky-way-seen-at-night-4148/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/46119/46119-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/46119/46119-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Starry night in the desert"></video>
+        <span class="rank">08</span>
+        <span class="pick" data-level="备选">备选</span>
+      </div>
+      <div class="info">
+        <h2>Starry night in the desert<span class="cn">沙漠星空</span></h2>
+        <p class="desc"><em>官方描述</em>官方未提供文字描述，标题即内容。</p>
+        <p class="mine">实拍沙漠夜空，星星密但颗粒细小，天空压得很黑。地面部分比 07 更暗，更容易在上面叠字。</p>
+        <ul class="specs">
+          <li><span>规格</span>1280 × 720 · 30 fps</li>
+          <li><span>时长 / 构图</span>13.3 秒 · 横屏 16:9</li>
+          <li><span>授权</span>Mixkit Restricted License</li>
+          <li><span>文件体积</span>仅 720p · 4.5 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/46119/46119-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/starry-night-in-the-desert-46119/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/19218/19218-thumb-720-2.jpg"
+               data-src="https://assets.mixkit.co/videos/19218/19218-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Discovering the galaxy"></video>
+        <span class="rank">09</span>
+        <span class="pick" data-level="备选">备选</span>
+      </div>
+      <div class="info">
+        <h2>Discovering the galaxy<span class="cn">发现银河</span></h2>
+        <p class="desc"><em>官方描述</em>官方未提供文字描述，标题即内容。</p>
+        <p class="mine">银河从暗处缓慢浮现的运镜，慢、稳，黑场大；比 07/08 更“太空”，少了实拍的空气感。</p>
+        <ul class="specs">
+          <li><span>规格</span>1280 × 720 · 25 fps</li>
+          <li><span>时长 / 构图</span>14.8 秒 · 横屏 16:9</li>
+          <li><span>授权</span>Mixkit Restricted License</li>
+          <li><span>文件体积</span>仅 720p · 5.2 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/19218/19218-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/discovering-the-galaxy-19218/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item is-vertical">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/39770/39770-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/39770/39770-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：View of the night sky filled with stars"></video>
+        <span class="rank">10</span>
+        <span class="pick" data-level="备选">备选 · 竖屏</span>
+      </div>
+      <div class="info">
+        <h2>View of the night sky filled with stars<span class="cn">繁星满天的夜空</span></h2>
+        <p class="desc"><em>官方描述</em>Vertical video of a brief tour of the view of the night sky full of stars of various sizes and intensities.</p>
+        <p class="mine">少量缓慢观星的镜头，是这批里唯一能直接用在手机竖屏 / 移动端的；桌面端铺满会裁掉不少内容。</p>
+        <ul class="specs">
+          <li><span>规格</span>1080 × 1920 · 24 fps</li>
+          <li><span>时长 / 构图</span>11.7 秒 · 竖屏 9:16</li>
+          <li><span>授权</span>Mixkit Free License</li>
+          <li><span>文件体积</span>720p 3.5 MB / 1080p 42.9 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn" href="https://assets.mixkit.co/videos/39770/39770-1080.mp4" target="_blank" rel="noopener">1080p 下载</a>
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/39770/39770-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/view-of-the-night-sky-filled-with-stars-39770/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/10405/10405-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/10405/10405-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Abstract yellow nebula shapes in space"></video>
+        <span class="rank">11</span>
+        <span class="pick" data-level="慎用">慎用</span>
+      </div>
+      <div class="info">
+        <h2>Abstract yellow nebula shapes in space<span class="cn">太空中黄色的抽象星云</span></h2>
+        <p class="desc"><em>官方描述</em>Abstract video of nebulous shapes from a collision in space, emanating light and shapes around yellow, with countless stars around.</p>
+        <p class="mine">星云是暖黄色、周围星星“无数”，亮度高、信息量大，和你说的“部分星星和星云、不要太多”是反方向的，列出来供你对比排除。</p>
+        <ul class="specs">
+          <li><span>规格</span>1920 × 1080 · 24 fps</li>
+          <li><span>时长 / 构图</span>11.0 秒 · 横屏 16:9</li>
+          <li><span>授权</span>Mixkit Free License</li>
+          <li><span>文件体积</span>720p 3.6 MB / 1080p 32.9 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn" href="https://assets.mixkit.co/videos/10405/10405-1080.mp4" target="_blank" rel="noopener">1080p 下载</a>
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/10405/10405-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/abstract-yellow-nebula-shapes-in-space-10405/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item is-vertical">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/10418/10418-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/10418/10418-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Shapes in space of a supernova"></video>
+        <span class="rank">12</span>
+        <span class="pick" data-level="慎用">慎用 · 竖屏</span>
+      </div>
+      <div class="info">
+        <h2>Shapes in space of a supernova<span class="cn">太空中的超新星形态</span></h2>
+        <p class="desc"><em>官方描述</em>Abstract view of an apparent collision of stars in the void of dark space, surrounded by a residual yellow cloud and stars.</p>
+        <p class="mine">黑底 + 黄色余晖云团，动得很慢，但“爆发”的视觉语义偏强，安静感被打破；另外是竖屏。</p>
+        <ul class="specs">
+          <li><span>规格</span>1080 × 1920 · 24 fps</li>
+          <li><span>时长 / 构图</span>11.0 秒 · 竖屏 9:16</li>
+          <li><span>授权</span>Mixkit Free License</li>
+          <li><span>文件体积</span>720p 3.3 MB / 1080p 32.1 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn" href="https://assets.mixkit.co/videos/10418/10418-1080.mp4" target="_blank" rel="noopener">1080p 下载</a>
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/10418/10418-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/shapes-in-space-of-a-supernova-10418/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item is-vertical">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/30076/30076-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/30076/30076-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Abstract video of space covered by a nebula and stars"></video>
+        <span class="rank">13</span>
+        <span class="pick" data-level="慎用">慎用 · 竖屏</span>
+      </div>
+      <div class="info">
+        <h2>Abstract video of space covered by a nebula and stars<span class="cn">被星云与星辰覆盖的太空（抽象）</span></h2>
+        <p class="desc"><em>官方描述</em>Nebulae in blue and lilac colors, surrounded by stars on all sides, of different sizes and intensities, under an abstract video superimposed in a red liquid shape.</p>
+        <p class="mine">蓝紫星云本身很对，但官方说叠了一层“红色液体形状”的抽象质感 —— 元素偏多，和“不要太多”冲突，所以放这里。</p>
+        <ul class="specs">
+          <li><span>规格</span>1080 × 1920 · 24 fps</li>
+          <li><span>时长 / 构图</span>8.2 秒 · 竖屏 9:16</li>
+          <li><span>授权</span>Mixkit Free License</li>
+          <li><span>文件体积</span>720p 2.9 MB / 1080p 33.2 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn" href="https://assets.mixkit.co/videos/30076/30076-1080.mp4" target="_blank" rel="noopener">1080p 下载</a>
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/30076/30076-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/abstract-video-of-space-covered-by-a-nebula-and-stars-30076/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/31596/31596-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/31596/31596-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Spectacular fluorescent colored nebulae in universe"></video>
+        <span class="rank">14</span>
+        <span class="pick" data-level="慎用">慎用</span>
+      </div>
+      <div class="info">
+        <h2>Spectacular fluorescent colored nebulae in universe<span class="cn">宇宙中荧光色的星云</span></h2>
+        <p class="desc"><em>官方描述</em>Stunning fluorescent colored nebulae found in the vast expanse of the universe. Perfect as a captivating background for astronomy-related content, or as an intriguing title/intro for any project.</p>
+        <p class="mine">颜色很艳（荧光色系），视觉冲击比“宁静”更强；如果你后面想做成偏艺术 / 迷幻的方向，它反而合适。</p>
+        <ul class="specs">
+          <li><span>规格</span>1280 × 720 · 25 fps</li>
+          <li><span>时长 / 构图</span>15.0 秒 · 横屏 16:9</li>
+          <li><span>授权</span>Mixkit Restricted License</li>
+          <li><span>文件体积</span>仅 720p · 5.4 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/31596/31596-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/spectacular-fluorescent-colored-nebulae-in-universe-31596/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <article class="item">
+      <div class="preview">
+        <video class="clip" poster="https://assets.mixkit.co/videos/14428/14428-thumb-720-0.jpg"
+               data-src="https://assets.mixkit.co/videos/14428/14428-720.mp4"
+               muted loop playsinline preload="none" aria-label="预览：Time-lapse of the stars in the sky"></video>
+        <span class="rank">15</span>
+        <span class="pick" data-level="慎用">慎用</span>
+      </div>
+      <div class="info">
+        <h2>Time-lapse of the stars in the sky<span class="cn">星空延时</span></h2>
+        <p class="desc"><em>官方描述</em>官方未提供文字描述，标题即内容。</p>
+        <p class="mine">延时摄影，星星在天上划得比较快 —— 这是它和“缓慢移动”最冲突的地方。但夜空质感是真的，若你能接受稍快的运动，它最有真实星空味。</p>
+        <ul class="specs">
+          <li><span>规格</span>1280 × 720 · 30 fps</li>
+          <li><span>时长 / 构图</span>21.1 秒 · 横屏 16:9</li>
+          <li><span>授权</span>Mixkit Restricted License</li>
+          <li><span>文件体积</span>仅 720p · 6.4 MB</li>
+        </ul>
+        <p class="actions">
+          <a class="btn ghost" href="https://assets.mixkit.co/videos/14428/14428-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+          <a class="src" href="https://mixkit.co/free-stock-video/time-lapse-of-the-stars-in-the-sky-14428/" target="_blank" rel="noopener">官方页面 ↗</a>
+        </p>
+      </div>
+    </article>
+
+    <section id="round-2" aria-labelledby="round-2-title">
+      <div class="round-head">
+        <p class="eyebrow">Round 02 &middot; 清冷 / 极简 / 少元素</p>
+        <h2 id="round-2-title">第二轮：更冷一点，更干净一点，东西再少一点</h2>
+        <p class="lede">
+          这次方向换了：不要繁密的星空星云，要「像一台钢琴」——黑白分明、留白很大、画面里只有一件事在缓慢发生。
+          下面 8 条按这个标准重筛。为了不靠观感瞎猜，我对每条视频都用 ffmpeg 抽了 3 帧做统计，
+          用数字来判断它到底「冷」还是「暖」、「空」还是「满」、「干净」还是「杂乱」。
+        </p>
+        <ul class="notes">
+          <li><strong>五个指标</strong>：<code>L</code> 平均亮度（越低越沉）· <code>B−R</code> 蓝减红（正数偏冷、负数偏暖）· <code>sat</code> 平均饱和度（越低越接近黑白）· <code>bright%</code> 亮部像素占比（越小说明留白越多、主体越小）· <code>edge</code> 边缘密度（越小画面越干净整洁）。</li>
+          <li><strong>怎么读</strong>：我想要的画面是「L 低 + B−R 不为负 + bright% 小 + edge 小」。按这个组合，<strong>16、17、18</strong> 三条最像钢琴：一个主体，一大片黑。</li>
+          <li><strong>不追星云了</strong>：这一轮刻意把「星云」全部剔掉。剩下的星星要么是稀疏颗粒（19），要么干脆没有（20、21），主要靠黑、灰、月光说话。</li>
+          <li><strong>偏暖也能救</strong>：17 号实测略偏暖（B−R = −10），一条 CSS 滤镜就能压成冷调，代码放在表格下面。</li>
+        </ul>
+
+        <div class="metrics-scroll">
+          <table class="metrics">
+            <caption>实测数据 · ffmpeg 抽帧 15% / 50% / 85% 三帧取平均</caption>
+            <thead>
+              <tr>
+                <th>编号</th>
+                <th>名称</th>
+                <th>L</th>
+                <th>B−R</th>
+                <th>sat</th>
+                <th>bright%</th>
+                <th>edge</th>
+                <th>判断</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>18</td><td>Earth slowly spinning</td><td>23</td><td>+11</td><td>13</td><td>14.6</td><td>10.2</td><td>最冷最空</td></tr>
+              <tr><td>16</td><td>Full moon, cloudy night</td><td>31</td><td>−1</td><td>3</td><td>19.6</td><td>8.5</td><td>纯灰阶</td></tr>
+              <tr><td>17</td><td>Full moon with soft haze</td><td>32</td><td>−10</td><td>10</td><td>17.8</td><td>7.6</td><td>略偏暖</td></tr>
+              <tr><td>19</td><td>Luminous particles</td><td>8</td><td>+9</td><td>9</td><td>6.9</td><td>4.4</td><td>极简冷</td></tr>
+              <tr><td>20</td><td>Smoke in motion</td><td>15</td><td>0</td><td>0</td><td>3.2</td><td>3.9</td><td>留白最大</td></tr>
+              <tr><td>21</td><td>Grey smoke on black</td><td>43</td><td>0</td><td>0</td><td>30.2</td><td>6.3</td><td>纯灰</td></tr>
+              <tr><td>22</td><td>Dark clouds + full moon</td><td>4</td><td>+3</td><td>4</td><td>0.1</td><td>1.4</td><td>近乎全黑</td></tr>
+              <tr><td>23</td><td>Bluish lake + stars</td><td>50</td><td>+60</td><td>60</td><td>40.1</td><td>7.8</td><td>偏浓</td></tr>
+              <tr class="is-out"><td>—</td><td>Blue smoke on black (45600)</td><td>84</td><td>+86</td><td>86</td><td>79.6</td><td>5.2</td><td>蓝得太满</td></tr>
+              <tr class="is-out"><td>—</td><td>Flowing blue lights (101442)</td><td>67</td><td>+170</td><td>170</td><td>56.3</td><td>9.1</td><td>电光蓝，不静</td></tr>
+              <tr class="is-out"><td>—</td><td>White thick mist (50957)</td><td>115</td><td>0</td><td>0</td><td>63.3</td><td>4.3</td><td>整屏白雾</td></tr>
+              <tr class="is-out"><td>—</td><td>Earth spinning fast (34352)</td><td>67</td><td>+19</td><td>24</td><td>56.1</td><td>12.0</td><td>太快太亮</td></tr>
+              <tr class="is-out"><td>—</td><td>Glitter stars / snowflakes (19007)</td><td>72</td><td>+86</td><td>96</td><td>58.9</td><td>20.7</td><td>最闹的一条</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grade">
+          <strong>把任何一条压成「清冷」的 CSS</strong><br>
+          素材只是底子，冷调最终是调出来的。直接给首页背景层加滤镜即可，不需要重新导出视频：
+          <pre><code>/* 通用：降饱和、压亮部、提一点对比 —— 画面立刻变冷变干净 */
+.video-layer video {
+  filter: saturate(0.62) brightness(0.88) contrast(1.06);
+}
+
+/* 针对偏暖的画面（例如 17 号满月）：再往蓝偏一点点 */
+.video-layer video.is-warm {
+  filter: saturate(0.7) hue-rotate(-6deg) brightness(0.9) contrast(1.05);
+}</code></pre>
+          <span>注意：滤镜是叠在解码后的画面上算的，几乎不增加开销；但别把 <code>brightness</code> 压过 0.8，否则暗部会糊成一片死黑。</span>
+        </div>
+      </div>
+
+      <article class="item">
+        <div class="preview">
+          <video class="clip" poster="https://assets.mixkit.co/videos/48025/48025-thumb-720-0.jpg"
+                 data-src="https://assets.mixkit.co/videos/48025/48025-720.mp4"
+                 muted loop playsinline preload="none" aria-label="预览：Full moon on a cloudy night"></video>
+          <span class="rank">16</span>
+          <span class="pick" data-level="首选">★ 首选</span>
+        </div>
+        <div class="info">
+          <h2>Full moon on a cloudy night<span class="cn">厚云掠过的满月</span></h2>
+          <p class="desc"><em>官方描述</em>官方未提供文字描述，标题即内容：满月 + 夜云。</p>
+          <p class="mine">厚云缓慢掠过一轮满月。实测饱和度只有 <strong>3</strong>，画面几乎没有彩色，就是黑、灰、月白三层 —— 这是这一轮里最像钢琴的一条：只有一个主体（月），只有一种运动（云走）。43.5 秒足够长，全屏循环时几乎看不出接缝；天空压得很黑，之后叠白色细字、细线都不会被抢。</p>
+          <ul class="specs">
+            <li><span>规格</span>1280 × 720 · 30 fps</li>
+            <li><span>时长 / 构图</span>43.5 秒 · 横屏 16:9</li>
+            <li><span>授权</span>Mixkit Restricted License</li>
+            <li><span>文件体积</span>仅 720p · 14.9 MB</li>
+          </ul>
+          <p class="actions">
+            <a class="btn ghost" href="https://assets.mixkit.co/videos/48025/48025-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+            <a class="src" href="https://mixkit.co/free-stock-video/full-moon-on-a-cloudy-night-48025/" target="_blank" rel="noopener">官方页面 ↗</a>
+          </p>
+        </div>
+      </article>
+
+      <article class="item">
+        <div class="preview">
+          <video class="clip" poster="https://assets.mixkit.co/videos/4433/4433-thumb-720-0.jpg"
+                 data-src="https://assets.mixkit.co/videos/4433/4433-720.mp4"
+                 muted loop playsinline preload="none" aria-label="预览：Full moon with a soft haze"></video>
+          <span class="rank">17</span>
+          <span class="pick" data-level="首选">★ 首选</span>
+        </div>
+        <div class="info">
+          <h2>Full moon with a soft haze<span class="cn">雾光里的孤月</span></h2>
+          <p class="desc"><em>官方描述</em>Full moon with a soft haze standing in the sky on a dark night.</p>
+          <p class="mine">一颗孤月悬在黑天里，周围一圈雾似的柔光，没有云、没有星点。比 16 号更空，接近极简摄影。授权是 Free License —— 这一轮 8 条里只有它和 20 号是 Free，商用最省心。小问题：实测偏暖 10 个色阶（B−R = −10），月光带一点点暖黄，用上面的 CSS 压一下就是冷白。</p>
+          <ul class="specs">
+            <li><span>规格</span>1280 × 720 · 25 fps</li>
+            <li><span>时长 / 构图</span>43.8 秒 · 横屏 16:9</li>
+            <li><span>授权</span>Mixkit Free License</li>
+            <li><span>文件体积</span>720p 12.8 MB / 1080p 157.5 MB</li>
+          </ul>
+          <p class="actions">
+            <a class="btn" href="https://assets.mixkit.co/videos/4433/4433-1080.mp4" target="_blank" rel="noopener">1080p 下载</a>
+            <a class="btn ghost" href="https://assets.mixkit.co/videos/4433/4433-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+            <a class="src" href="https://mixkit.co/free-stock-video/full-moon-with-a-soft-haze-4433/" target="_blank" rel="noopener">官方页面 ↗</a>
+          </p>
+        </div>
+      </article>
+
+      <article class="item">
+        <div class="preview">
+          <video class="clip" poster="https://assets.mixkit.co/videos/29351/29351-thumb-720-0.jpg"
+                 data-src="https://assets.mixkit.co/videos/29351/29351-720.mp4"
+                 muted loop playsinline preload="none" aria-label="预览：Video of the Earth slowly spinning on its axis"></video>
+          <span class="rank">18</span>
+          <span class="pick" data-level="首选">★ 首选</span>
+        </div>
+        <div class="info">
+          <h2>Video of the Earth slowly spinning on its axis<span class="cn">纯黑里自转的地球</span></h2>
+          <p class="desc"><em>官方描述</em>Video of the Earth spinning slowly, half illuminated by the sun with the other showing the lights of cities at night.</p>
+          <p class="mine">一个地球在纯黑里慢慢自转，一半被照亮、一半是城市灯。全表最冷的一条（B−R = +11），亮部只占 14.6%，画面上只有一颗球、运动极慢。要注意的是地球的轮廓是「具体形象」，比月亮更抢注意力；如果你想要更抽象的背景，选 16 / 17。</p>
+          <ul class="specs">
+            <li><span>规格</span>1280 × 720 · 30 fps</li>
+            <li><span>时长 / 构图</span>20.0 秒 · 横屏 16:9</li>
+            <li><span>授权</span>Mixkit Restricted License</li>
+            <li><span>文件体积</span>仅 720p · 6.1 MB</li>
+          </ul>
+          <p class="actions">
+            <a class="btn ghost" href="https://assets.mixkit.co/videos/29351/29351-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+            <a class="src" href="https://mixkit.co/free-stock-video/video-of-the-earth-slowly-spinning-on-its-axis-29351/" target="_blank" rel="noopener">官方页面 ↗</a>
+          </p>
+        </div>
+      </article>
+
+      <article class="item">
+        <div class="preview">
+          <video class="clip" poster="https://assets.mixkit.co/videos/18140/18140-thumb-720-0.jpg"
+                 data-src="https://assets.mixkit.co/videos/18140/18140-720.mp4"
+                 muted loop playsinline preload="none" aria-label="预览：Layer of luminous particles in space"></video>
+          <span class="rank">19</span>
+          <span class="pick" data-level="备选">备选</span>
+        </div>
+        <div class="info">
+          <h2>Layer of luminous particles in space<span class="cn">深空里的一层冷光颗粒</span></h2>
+          <p class="desc"><em>官方描述</em>官方未提供文字描述，标题即内容。</p>
+          <p class="mine">一层极稀疏的冷色发光颗粒在黑暗里浮动。亮部只占 6.9%、边缘密度 4.4，基本就是「黑底上几点微光」，属于表里最干净的几条之一。它既不是星空也不是星云，只提供「空气里有东西在动」的呼吸感，最适合压在文字层下面当底噪。只有 10 秒，循环会略看出重复。</p>
+          <ul class="specs">
+            <li><span>规格</span>1280 × 720 · 29.97 fps</li>
+            <li><span>时长 / 构图</span>10.0 秒 · 横屏 16:9</li>
+            <li><span>授权</span>Mixkit Restricted License</li>
+            <li><span>文件体积</span>仅 720p · 3.2 MB</li>
+          </ul>
+          <p class="actions">
+            <a class="btn ghost" href="https://assets.mixkit.co/videos/18140/18140-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+            <a class="src" href="https://mixkit.co/free-stock-video/layer-of-luminous-particles-in-space-18140/" target="_blank" rel="noopener">官方页面 ↗</a>
+          </p>
+        </div>
+      </article>
+
+      <article class="item">
+        <div class="preview">
+          <video class="clip" poster="https://assets.mixkit.co/videos/1964/1964-thumb-720-0.jpg"
+                 data-src="https://assets.mixkit.co/videos/1964/1964-720.mp4"
+                 muted loop playsinline preload="none" aria-label="预览：Smoke in motion"></video>
+          <span class="rank">20</span>
+          <span class="pick" data-level="备选">备选</span>
+        </div>
+        <div class="info">
+          <h2>Smoke in motion<span class="cn">黑底上一缕缓慢游动的白烟</span></h2>
+          <p class="desc"><em>官方描述</em>White smoke in motion dancing across a black background.</p>
+          <p class="mine">纯灰阶（sat = 0），亮部只占 3.2% —— 8 条里留白最大的一条（不算几乎全黑的 22 号）。它不是星空，但「质地」是这 8 条里最好的：光滑、慢、有呼吸，像钢琴按下去之后的延音。有 1080p 和 4K 版本可选。如果你想要的其实是「黑白极简」而不是「天文」，这条最对味。</p>
+          <ul class="specs">
+            <li><span>规格</span>1280 × 720 · 24 fps</li>
+            <li><span>时长 / 构图</span>22.3 秒 · 横屏 16:9</li>
+            <li><span>授权</span>Mixkit Free License</li>
+            <li><span>文件体积</span>720p 7.0 MB / 1080p 81.0 MB / 4K 99.4 MB</li>
+          </ul>
+          <p class="actions">
+            <a class="btn" href="https://assets.mixkit.co/videos/1964/1964-1080.mp4" target="_blank" rel="noopener">1080p 下载</a>
+            <a class="btn ghost" href="https://assets.mixkit.co/videos/1964/1964-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+            <a class="src" href="https://mixkit.co/free-stock-video/smoke-in-motion-1964/" target="_blank" rel="noopener">官方页面 ↗</a>
+          </p>
+        </div>
+      </article>
+
+      <article class="item">
+        <div class="preview">
+          <video class="clip" poster="https://assets.mixkit.co/videos/45298/45298-thumb-720-0.jpg"
+                 data-src="https://assets.mixkit.co/videos/45298/45298-720.mp4"
+                 muted loop playsinline preload="none" aria-label="预览：Grey smoke on a black background"></video>
+          <span class="rank">21</span>
+          <span class="pick" data-level="备选">备选</span>
+        </div>
+        <div class="info">
+          <h2>Grey smoke on a black background<span class="cn">黑底翻卷的灰烟</span></h2>
+          <p class="desc"><em>官方描述</em>官方未提供文字描述，标题即内容：黑底 + 灰烟。</p>
+          <p class="mine">纯灰烟在黑色里翻卷，sat = 0，一点颜色都没有，比 20 号更厚、占比更大（亮部 30%），气质更冷更硬。50 fps 素材，之后要转 30 fps 输出会更顺滑。授权我已回官方页面复核：是 <strong>Restricted License</strong>，不是 Free，正式用之前请按 Restricted 的条款对待。</p>
+          <ul class="specs">
+            <li><span>规格</span>1280 × 720 · 50 fps</li>
+            <li><span>时长 / 构图</span>17.9 秒 · 横屏 16:9</li>
+            <li><span>授权</span>Mixkit Restricted License</li>
+            <li><span>文件体积</span>仅 720p · 5.8 MB</li>
+          </ul>
+          <p class="actions">
+            <a class="btn ghost" href="https://assets.mixkit.co/videos/45298/45298-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+            <a class="src" href="https://mixkit.co/free-stock-video/grey-smoke-on-a-black-background-45298/" target="_blank" rel="noopener">官方页面 ↗</a>
+          </p>
+        </div>
+      </article>
+
+      <article class="item">
+        <div class="preview">
+          <video class="clip" poster="https://assets.mixkit.co/videos/47299/47299-thumb-720-0.jpg"
+                 data-src="https://assets.mixkit.co/videos/47299/47299-720.mp4"
+                 muted loop playsinline preload="none" aria-label="预览：Dark clouds illuminated by the light of a full moon"></video>
+          <span class="rank">22</span>
+          <span class="pick" data-level="慎用">慎用</span>
+        </div>
+        <div class="info">
+          <h2>Dark clouds illuminated by the light of a full moon<span class="cn">厚云被月光照亮的夜</span></h2>
+          <p class="desc"><em>官方描述</em>官方未提供文字描述，标题即内容。</p>
+          <p class="mine">这条极暗：抽的三帧里亮部几乎为 0（0.1%），也就是说大部分时间画面就是一片深黑的云。<strong>如果你要的是「偶尔才透出一点光」的极简，它非常对</strong>——月亮只在个别时刻从云缝里露出来。但它也最挑内容：叠在上面的字必须自己能立住，不能指望背景给层次。</p>
+          <ul class="specs">
+            <li><span>规格</span>1280 × 720 · 29.97 fps</li>
+            <li><span>时长 / 构图</span>19.1 秒 · 横屏 16:9</li>
+            <li><span>授权</span>Mixkit Restricted License</li>
+            <li><span>文件体积</span>仅 720p · 6.7 MB</li>
+          </ul>
+          <p class="actions">
+            <a class="btn ghost" href="https://assets.mixkit.co/videos/47299/47299-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+            <a class="src" href="https://mixkit.co/free-stock-video/dark-clouds-illuminated-by-the-light-of-a-full-moon-47299/" target="_blank" rel="noopener">官方页面 ↗</a>
+          </p>
+        </div>
+      </article>
+
+      <article class="item">
+        <div class="preview">
+          <video class="clip" poster="https://assets.mixkit.co/videos/27023/27023-thumb-720-0.jpg"
+                 data-src="https://assets.mixkit.co/videos/27023/27023-720.mp4"
+                 muted loop playsinline preload="none" aria-label="预览：Beautiful bluish landscape of a lake and starry sky"></video>
+          <span class="rank">23</span>
+          <span class="pick" data-level="慎用">慎用</span>
+        </div>
+        <div class="info">
+          <h2>Beautiful bluish landscape of a lake and starry sky<span class="cn">冷蓝湖面上的星空</span></h2>
+          <p class="desc"><em>官方描述</em>官方未提供文字描述，标题即内容。</p>
+          <p class="mine">色调是这批里最接近「清冷蓝」的（B−R = +60），星空压得不太密，湖面很静。两个硬伤：只有 5.16 秒，循环时会明显看出重复；而且是实拍风景、带地平线和倒影，画面元素比前几条多，更像一张照片而不是一个留白。放在这里，是万一你其实想要「一点真实风景」时的备选。</p>
+          <ul class="specs">
+            <li><span>规格</span>1280 × 720 · 25 fps</li>
+            <li><span>时长 / 构图</span>5.2 秒 · 横屏 16:9</li>
+            <li><span>授权</span>Mixkit Restricted License</li>
+            <li><span>文件体积</span>仅 720p · 1.8 MB</li>
+          </ul>
+          <p class="actions">
+            <a class="btn ghost" href="https://assets.mixkit.co/videos/27023/27023-720.mp4" target="_blank" rel="noopener">720p 下载</a>
+            <a class="src" href="https://mixkit.co/free-stock-video/beautiful-bluish-landscape-of-a-lake-and-starry-sky-27023/" target="_blank" rel="noopener">官方页面 ↗</a>
+          </p>
+        </div>
+      </article>
+
+    </section>
+
+  </main>
+
+  <footer class="page-foot">
+    <div class="wrap">
+      <h2>授权说明</h2>
+      <p>
+        以上素材全部来自 <a href="https://mixkit.co/free-stock-video/space/" target="_blank" rel="noopener">Mixkit</a> 的免费视频库，
+        官方条款见 <a href="https://mixkit.co/license/" target="_blank" rel="noopener">Mixkit License</a>。
+        标 <strong>Mixkit Free License</strong> 的可免费商用、无需署名（不能把素材本身转售或再分发）；
+        标 <strong>Mixkit Restricted License</strong> 的条目条款更严格，正式上线前请到该素材的官方页面确认一次。
+      </p>
+
+      <h2>规格数据来源</h2>
+      <p>
+        分辨率、帧率、时长均由我本地用 ffprobe 实测，文件体积取自 CDN 的 Content-Length，
+        所有直链与缩略图都做过 HTTP 校验（全部 200）。数据抓取时间：2026-11-09。
+      </p>
+      <p>
+        第二轮那五项色彩数据不是估的：用 ffmpeg 在每条视频的 15%、50%、85% 处各抽 1 帧，
+        缩放到 32×18 像素后统计平均 RGB、亮度、饱和度、亮部占比和相邻像素亮度差，三帧取平均。
+        「冷」看 B−R，「空」看 bright%，「干净」看 edge —— 所以筛掉的那些（比如 19007、45600）不是不好看，是数字上太满太闹。
+      </p>
+
+      <h2>想自己再逛一逛</h2>
+      <p>
+        <a href="https://www.pexels.com/search/videos/starry%20sky/" target="_blank" rel="noopener">Pexels · starry sky</a> ·
+        <a href="https://www.pexels.com/search/videos/nebula/" target="_blank" rel="noopener">Pexels · nebula</a> ·
+        <a href="https://pixabay.com/videos/search/starry%20sky/" target="_blank" rel="noopener">Pixabay · starry sky</a> ·
+        <a href="https://coverr.co/s?q=stars" target="_blank" rel="noopener">Coverr · stars</a> ·
+        <a href="https://mixkit.co/free-stock-video/nebula/" target="_blank" rel="noopener">Mixkit · nebula</a>
+      </p>
+      <p>
+        这几个站同样是免费可商用，但 Pexels / Pixabay 会拦截程序访问，我无法替你逐条验证它们的直链，
+        所以没有放进来（Coverr 的搜索结果里混着付费的 premium 条目，也需要人工辨认）。
+      </p>
+
+      <h2>下一步</h2>
+      <p>
+        你告诉我编号（例如「用 16」或「用 17」），我就把它下载到 <code>asset/video/</code> 并替换首页的背景视频，
+        顺手把上面那段冷调滤镜一起调好，之后所有特效和交互都叠在它上面。
+        如果想再冷一些、再空一些，也可以直接说「再压暗一点 / 再少一点东西」，我按数据继续往下筛。
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var clips = Array.prototype.slice.call(document.querySelectorAll('.clip'));
+
+      function load(v) {
+        var src = v.getAttribute('data-src');
+        if (src && !v.getAttribute('src')) {
+          v.src = src;
+          v.load();
+        }
+      }
+
+      function tryPlay(v) {
+        load(v);
+        var p = v.play();
+        if (p && typeof p.catch === 'function') p.catch(function () {});
+      }
+
+      // 进入视口才加载并播放，离开视口暂停：避免十几个视频同时解码导致卡顿
+      if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              tryPlay(entry.target);
+            } else if (!entry.target.paused) {
+              entry.target.pause();
+            }
+          });
+        }, { threshold: 0.35 });
+
+        clips.forEach(function (v) { io.observe(v); });
+      } else {
+        clips.forEach(tryPlay);
+      }
+
+      // 点画面切换 播放 / 暂停
+      clips.forEach(function (v) {
+        var box = v.closest('.preview');
+
+        v.addEventListener('click', function () {
+          if (v.paused) { tryPlay(v); } else { v.pause(); }
+        });
+
+        v.addEventListener('play', function () { box.classList.remove('is-paused'); });
+        v.addEventListener('pause', function () { box.classList.add('is-paused'); });
+      });
+    })();
+  </script>
+</body>
+</html>
