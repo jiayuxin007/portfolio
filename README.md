@@ -38,6 +38,23 @@ Vercel 上重新部署：
 npx vercel@latest deploy --prod --yes --archive=tgz --scope jiayuxin
 ```
 
+### 免费地址（`*.vercel.app`）
+
+项目 `jiayuxin` 目前挂着几个免费别名，都可用（实测 200）：
+
+| 地址 | 说明 |
+| --- | --- |
+| <https://jiayuxin.vercel.app> | 主地址 |
+| <https://jiayuxin-piano.vercel.app> | 备用 |
+| <https://yuxin-jia.vercel.app> | 备用 |
+
+规则（都是 0 元）：
+
+- 名字**只要没被别人占用**就能挂，一个项目可以同时挂多个；改名或加别名 1 分钟左右生效。
+- 只能改 `.vercel.app` 前面那一段，后缀改不了，也不能加路径。
+- 改法：Vercel 项目 → Settings → Domains；或命令行 `npx vercel@latest domains add jiayuxin-piano.vercel.app`。
+- 已被别人占用、挂不上的例子：`yuxin`、`yuxin-portfolio`、`grand-piano`。
+
 ### 自定义域名
 
 目前用 Vercel 免费送的二级域名 `jiayuxin.vercel.app`，**没有买独立域名**。
