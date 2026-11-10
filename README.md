@@ -6,8 +6,9 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| `index.html` | 首页。全屏循环视频背景层（`z-index: -1`），内容层待填 |
-| `piano.html` | **Grand Piano · 粒子流变装置**。three.js 点云钢琴：形态演化 / 条纹溶解 / curl-noise 星云 |
+| `index.html` | **首页（= Grand Piano 粒子流变装置）**。three.js 点云钢琴：形态演化 / 条纹溶解 / curl-noise 星云 |
+| `video-bg.html` | 早先的视频背景草稿（全屏循环视频层，内容层待填），当前未接入首页 |
+| `piano.html` | 旧链接的重定向壳：`meta refresh` → `/`，以前分享过的 `/piano.html` 仍能打开 |
 | `video-options.html` | 星空视频素材候选页：Mixkit 免费素材清单，附冷调、留白、杂乱度抽帧数据 |
 
 ## 本地预览
@@ -20,11 +21,11 @@ npx serve .
 python -m http.server 8777
 ```
 
-然后访问 <http://localhost:8777/piano.html>。
+然后访问 <http://localhost:8777/>（首页就是钢琴装置）。
 
 ## 素材
 
-- `asset/model/grand-piano.glb`（15.7 MB）—— 钢琴点云的采样源，`piano.html` 必需；缺失时页面会给出兜底提示
+- `asset/model/grand-piano.glb`（15.7 MB）—— 钢琴点云的采样源，首页 `index.html` 必需；缺失时页面会给出兜底提示
 - `asset/video/12336965-hd_1920_1028_60fps.mp4`（14.1 MB）—— 首页背景视频
 - `works/video/*.mp4` —— 成片素材，单个文件 193 MB 超过 GitHub 的 100 MB 单文件上限，**未纳入版本库**。
   需要时用 Git LFS 接管：
@@ -35,7 +36,7 @@ git lfs track "works/video/*.mp4"
 git add .gitattributes works/video
 ```
 
-## piano.html 技术要点
+## 首页（index.html）技术要点
 
 - Three.js r160（CDN import map，不装 npm，无打包）
 - 自定义 GLSL：点云形态演化、条纹溶解、curl noise 星云、鼠标力场扰动

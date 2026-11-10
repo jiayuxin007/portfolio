@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jia Yuxin</title>
+
+  <style>
+    /* 只在根元素上给底色：body 保持透明，
+       这样负 z-index 的视频层才不会被 body 的背景盖住 */
+    html {
+      background-color: #000;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* 最底层：全屏循环播放的视频背景
+       z-index: -1 让它排在所有普通文档流内容之下，
+       之后写的内容/效果无需设置 z-index 就会叠在它上面 */
+    .video-layer {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .video-layer video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      /* 等比铺满视口，不留黑边 */
+      object-fit: cover;
+      object-position: center center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 背景视频层（最底层） -->
+  <div class="video-layer">
+    <video
+      src="asset/video/12336965-hd_1920_1028_60fps.mp4"
+      autoplay
+      loop
+      muted
+      playsinline
+      preload="auto"
+      disablepictureinpicture
+      aria-hidden="true"
+    ></video>
+  </div>
+
+  <!-- 之后的效果与交互内容写在这里，会自然叠在视频之上 -->
+
+</body>
+</html>

@@ -1,61 +1,2948 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jia Yuxin</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Grand Piano · 粒子流变装置</title>
 
-  <style>
-    /* 只在根元素上给底色：body 保持透明，
-       这样负 z-index 的视频层才不会被 body 的背景盖住 */
-    html {
-      background-color: #000;
-    }
+<!-- 像素字体：8×8 点阵。只用它渲染 HUD 的几组英文 / 意大利文，中文仍走系统字体 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 
-    body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-    }
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2212%22 fill=%22none%22 stroke=%22%2300ffff%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%223%22 fill=%22%2300ffff%22/%3E%3C/svg%3E">
 
-    /* 最底层：全屏循环播放的视频背景
-       z-index: -1 让它排在所有普通文档流内容之下，
-       之后写的内容/效果无需设置 z-index 就会叠在它上面 */
-    .video-layer {
-      position: fixed;
-      inset: 0;
-      z-index: -1;
-      pointer-events: none;
-      overflow: hidden;
-    }
+<style>
+  /* ============================================================
+     基础排版：极简、深空黑、画面里不出现任何文字
+     ============================================================ */
+  :root {
+    --cyan: #00ffff;
+  }
 
-    .video-layer video {
-      display: block;
-      width: 100%;
-      height: 100%;
-      /* 等比铺满视口，不留黑边 */
-      object-fit: cover;
-      object-position: center center;
-    }
-  </style>
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  html { background: #02030a; }
+
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #02030a;
+    cursor: crosshair;
+    /* 禁止移动端下拉刷新，保证拖拽旋转的手感 */
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  #stage {
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* 暗角：压住四周，把注意力收进画面中心，同时给深空一点冷蓝的层次 */
+  .vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background:
+      radial-gradient(125% 95% at 50% 44%,
+        rgba(0, 0, 0, 0) 34%,
+        rgba(4, 7, 20, 0.42) 74%,
+        rgba(7, 11, 30, 0.86) 100%);
+  }
+
+  /* ============================================================
+     全息菜单（像素风 HUD 定格）
+     ------------------------------------------------------------
+     左右两侧严格镜像：同一个 .nav-btn 结构，只是锚点贴边不同，
+     所以 top / padding / 字号完全一致，只有 left / right 互换。
+
+     像素颗粒感由三层叠出来，缺一层就会"变软"：
+       ① 'Press Start 2P' 的 8×8 点阵字形
+       ② image-rendering: pixelated + font-smoothing: none 关掉抗锯齿
+       ③ border-radius: 0 + 1px 硬边 + 极弱的外发光（#00FFFF）
+     毛玻璃只给很薄的底（0.28），底下的粒子亮斑必须能透过来 ——
+     否则两个按钮会变成贴在画廊黑底上的两块灰板。
+     ============================================================ */
+  .hud-nav {
+    /* 绝对定位：body 是 100% 高 + overflow: hidden，页面不会滚动，
+       所以这里的 top / left 就是"视口顶部的左右两侧"，与 fixed 等价，
+       但更符合"悬浮锚点"的语义（以后要嵌进别的容器也不用改） */
+    position: absolute;
+    top: clamp(18px, 4.2vh, 46px);
+    z-index: 6;
+    /* 只有按钮本身吃指针事件，包裹层别挡住画面拖拽 */
+    pointer-events: none;
+  }
+
+  .hud-nav--left  { left:  clamp(18px, 4.6vw, 64px); }
+  .hud-nav--right { right: clamp(18px, 4.6vw, 64px); }
+
+  .nav-btn {
+    position: relative;
+    display: inline-block;
+    pointer-events: auto;
+
+    margin: 0;
+    padding: 13px 17px 12px;
+    appearance: none;
+    -webkit-appearance: none;
+
+    font-family: 'Press Start 2P', 'Zpix', 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    color: #eafcff;
+    white-space: nowrap;
+    text-decoration: none;
+
+    /* 毛玻璃：薄底 + 冷青描边 */
+    background-color: rgba(3, 16, 26, 0.28);
+    border: 1px solid rgba(0, 255, 255, 0.42);
+    border-radius: 0;
+    box-shadow:
+      0 0 0 1px rgba(0, 255, 255, 0.05),
+      0 0 14px rgba(0, 255, 255, 0.10),
+      inset 0 0 12px rgba(0, 255, 255, 0.05);
+    -webkit-backdrop-filter: blur(7px) saturate(150%);
+    backdrop-filter: blur(7px) saturate(150%);
+
+    /* 像素字：关掉一切平滑，让每个点阵方块都是硬的 */
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+    font-smooth: never;
+    text-rendering: geometricPrecision;
+
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      color 0.22s ease,
+      background-color 0.22s ease,
+      border-color 0.22s ease,
+      box-shadow 0.22s ease,
+      transform 0.22s ease;
+  }
+
+  /* 取景框：只留左上 / 右下两个直角 —— 比一圈描边更轻，也更像 HUD */
+  .nav-btn::before,
+  .nav-btn::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border: 1px solid rgba(0, 255, 255, 0.80);
+    transition: width 0.22s ease, height 0.22s ease, border-color 0.22s ease;
+  }
+
+  .nav-btn::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+  .nav-btn::after  { right: -1px; bottom: -1px; border-left: 0; border-top: 0; }
+
+  .nav-btn:hover,
+  .nav-btn:focus-visible {
+    outline: none;
+    color: #ffffff;
+    background-color: rgba(0, 46, 62, 0.44);
+    border-color: rgba(0, 255, 255, 0.95);
+    box-shadow:
+      0 0 0 1px rgba(0, 255, 255, 0.16),
+      0 0 26px rgba(0, 255, 255, 0.30),
+      inset 0 0 20px rgba(0, 255, 255, 0.12);
+    /* 微弱青光 + 一道 1px 硬投影（保住像素字的边缘） */
+    text-shadow:
+      0 0 9px rgba(0, 255, 255, 0.72),
+      1px 1px 0 rgba(0, 26, 36, 0.70);
+    transform: translateY(-1px);
+  }
+
+  .nav-btn:hover::before,
+  .nav-btn:hover::after,
+  .nav-btn:focus-visible::before,
+  .nav-btn:focus-visible::after {
+    width: 12px;
+    height: 12px;
+    border-color: #ffffff;
+  }
+
+  @media (max-width: 720px) {
+    .hud-nav { top: 16px; }
+    .hud-nav--left  { left: 14px; }
+    .hud-nav--right { right: 14px; }
+    .nav-btn { font-size: 9px; padding: 11px 13px 10px; letter-spacing: 0.12em; }
+  }
+
+  /* ============================================================
+     语言切换（右下角分段开关）
+     ------------------------------------------------------------
+     和上面的锚点同一套像素语言：点阵字、1px 硬边、0 圆角、对角取景框。
+     区别是它表达"当前状态"，所以选中的那一段直接反相成电光青实心块 ——
+     在暗场里，实心块比发光描边更容易一眼读出"现在是哪种语言"。
+     ============================================================ */
+  .lang-switch {
+    position: absolute;
+    right: clamp(18px, 4.6vw, 64px);
+    bottom: clamp(18px, 4.2vh, 46px);
+    z-index: 6;
+
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+    padding: 4px;
+    pointer-events: auto;
+
+    background-color: rgba(3, 16, 26, 0.28);
+    border: 1px solid rgba(0, 255, 255, 0.30);
+    border-radius: 0;
+    -webkit-backdrop-filter: blur(7px) saturate(150%);
+    backdrop-filter: blur(7px) saturate(150%);
+    box-shadow:
+      0 0 14px rgba(0, 255, 255, 0.08),
+      inset 0 0 12px rgba(0, 255, 255, 0.04);
+  }
+
+  /* 取景框：和 .nav-btn 一样的左上 / 右下两个直角 */
+  .lang-switch::before,
+  .lang-switch::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border: 1px solid rgba(0, 255, 255, 0.55);
+  }
+
+  .lang-switch::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+  .lang-switch::after  { right: -1px; bottom: -1px; border-left: 0; border-top: 0; }
+
+  .lang-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    padding: 7px 8px 6px;
+    border-radius: 0;
+
+    font-family: 'Press Start 2P', 'Zpix', 'Courier New', monospace;
+    font-size: 9px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    color: rgba(150, 232, 255, 0.50);
+
+    background-color: rgba(0, 40, 56, 0.18);
+    border: 1px solid rgba(0, 255, 255, 0.14);
+    box-shadow: none;
+
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+    font-smooth: never;
+    text-rendering: geometricPrecision;
+
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      color 0.2s ease,
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .lang-btn:hover,
+  .lang-btn:focus-visible {
+    outline: none;
+    color: #eafcff;
+    border-color: rgba(0, 255, 255, 0.55);
+    box-shadow: 0 0 12px rgba(0, 255, 255, 0.18);
+  }
+
+  /* 当前语言：反相实心块 */
+  .lang-btn.is-active {
+    color: #021018;
+    background-color: rgba(0, 255, 255, 0.82);
+    border-color: rgba(0, 255, 255, 0.95);
+    box-shadow:
+      0 0 16px rgba(0, 255, 255, 0.35),
+      inset 0 0 8px rgba(255, 255, 255, 0.35);
+  }
+
+  .lang-btn.is-active:hover,
+  .lang-btn.is-active:focus-visible {
+    color: #021018;
+  }
+
+  @media (max-width: 720px) {
+    .lang-switch { right: 14px; bottom: 16px; gap: 3px; padding: 3px; }
+    .lang-btn { font-size: 8px; padding: 6px 7px 5px; letter-spacing: 0.1em; }
+  }
+
+  /* ============================================================
+     载入层
+     ============================================================ */
+  #loader {
+    position: fixed;
+    inset: 0;
+    z-index: 9;
+    display: grid;
+    place-content: center;
+    gap: 18px;
+    background: #02030a;
+    transition: opacity 1.1s ease, visibility 1.1s;
+  }
+
+  #loader.done { opacity: 0; visibility: hidden; }
+
+  #loader .bar {
+    position: relative;
+    width: 240px;
+    height: 1px;
+    background: rgba(120, 200, 255, 0.16);
+    overflow: hidden;
+  }
+
+  #loader .bar i {
+    position: absolute;
+    inset: 0;
+    transform: scaleX(0);
+    transform-origin: left center;
+    background: linear-gradient(90deg, #0a6cff, var(--cyan), #b06bff);
+    box-shadow: 0 0 12px rgba(0, 255, 255, 0.6);
+    transition: transform 0.35s ease;
+  }
+
+  #loader .err {
+    display: none;
+    max-width: 540px;
+    margin: 6px auto 0;
+    padding: 0 24px;
+    text-align: center;
+    font-size: 12px;
+    line-height: 2;
+    letter-spacing: 0.02em;
+    color: #ff9d9d;
+  }
+
+  #loader .err code {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 11.5px;
+    color: #ffd7d7;
+  }
+
+  @media (max-width: 720px) {
+    #loader .bar { width: 180px; }
+  }
+</style>
 </head>
 <body>
 
-  <!-- 背景视频层（最底层） -->
-  <div class="video-layer">
-    <video
-      src="asset/video/12336965-hd_1920_1028_60fps.mp4"
-      autoplay
-      loop
-      muted
-      playsinline
-      preload="auto"
-      disablepictureinpicture
-      aria-hidden="true"
-    ></video>
+  <canvas id="stage"></canvas>
+
+  <div class="vignette"></div>
+
+  <!-- 全息菜单：左右镜像的两个像素锚点（左 ART WORKS / 右 ABOUT ME）。
+       文字由 6.5 节末尾的 I18N 字典接管（data-i18n / data-i18n-aria），
+       默认英文，切到意大利文时变成 Opere / Biografia。
+       悬停时 JS 会把这两块屏幕区域换算成相机前方的世界坐标，
+       同时给粒子场注入一个定向风场（见 6.5 节）。 -->
+  <nav class="hud-nav hud-nav--left" aria-label="Works" data-i18n-aria="nav.worksLabel">
+    <button type="button" class="nav-btn" id="nav-works" data-i18n="nav.works">ART WORKS</button>
+  </nav>
+  <nav class="hud-nav hud-nav--right" aria-label="About me" data-i18n-aria="nav.aboutLabel">
+    <button type="button" class="nav-btn" id="nav-about" data-i18n="nav.about">ABOUT ME</button>
+  </nav>
+
+  <!-- 语言切换：右下角分段开关。EN / IT，选中段反相成电光青实心块。
+       点击只换文案（见 I18N），不做任何页面跳转。 -->
+  <div class="lang-switch" id="lang-switch" role="group" aria-label="Lingua / Language">
+    <button type="button" class="lang-btn is-active" data-lang="en" aria-pressed="true">EN</button>
+    <button type="button" class="lang-btn" data-lang="it" aria-pressed="false">IT</button>
   </div>
 
-  <!-- 之后的效果与交互内容写在这里，会自然叠在视频之上 -->
 
+  <div id="loader">
+    <div class="bar"><i id="bar"></i></div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    /* ==========================================================================
+       Grand Piano · 粒子流变装置
+       --------------------------------------------------------------------------
+       技术栈：Three.js r160 (ESM) + 原生 GLSL + UnrealBloomPass
+       流程：GLTFLoader 载入钢琴 → 从模型顶点采样出点云（点云就是模型自己）
+             → 顶点着色器在两组坐标缓冲之间做形态插值：
+                  targetPosition（钢琴轮廓） ⇄ noisePosition（混沌星云）
+                （noisePosition 在 CPU 上一次性烘成三臂螺旋盘：目标形状必须唯一，
+                  重组时才收得干净；每点另有 aRand.z 的延迟，散开是一层层荡开的）
+             → 脱离琴面之后由 3D Simplex 派生的 Curl Noise（无散度旋度场）驱动，
+               表现出烟雾 / 深海漩涡 / 星际尘埃那种有机流动
+             → 鼠标射线在世界空间里形成一个 1/d² 的排斥力场 + 切向旋涡
+             → 形态循环「静止 → 解体 → 流变 → 重组 → 归位」无限往复：
+                静止 / 归位段渲染真材质网格，其余段落渲染尘，两条线严格互补
+             → 加法混合 + UnrealBloomPass + 纯黑底，青蓝 ↔ 紫罗兰
+       点感：加法混合的星尘 —— 内核亮、外晕淡，亮度由粒子密度叠出来
+       细节：每点有独立相位（闪烁 / 稀疏爆闪），点径随距离透视衰减并钳在像素上限
+       ========================================================================== */
+
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+    /* ==========================================================================
+       0. 配置
+       ========================================================================== */
+
+    const IS_MOBILE = window.matchMedia('(max-width: 780px)').matches;
+
+    const CONFIG = {
+      modelUrl: 'asset/model/grand-piano.glb',
+
+      // 模型归一化：把包围盒最大边缩放到这个尺寸（世界单位）
+      targetSize: 4.6,
+
+      // 当前这个 GLB 的网格节点自带 180° 绕 Z 的旋转，导致模型在世界空间里是
+      // 倒着站的（琴轮朝上、琴盖朝下）。这里统一做一次 180° 绕 X 校正。
+      // 换成别的模型时如果方向正常，把它改成 false 即可。
+      flipY: true,
+
+      /* 点云外观 --------------------------------------------------------------
+         v3：改用加法混合（AdditiveBlending）。
+         粒子不再互相遮挡，而是一层一层叠加发光，所以单点必须"又小又淡"，
+         亮度交给密度和 Bloom 去长 —— 参数方向反了（大点 + 高 alpha）会立刻糊成白板。
+         · color / colorFar 是同一套配色的两端：钢琴态是赛博青蓝，星云态是紫罗兰，
+           中间由顶点着色器按形态 m 插值，所以"化开"的过程本身就是一次换色。
+         · alpha 只有 0.20：加法混合下五六颗点叠起来就已经接近 1.0。 */
+      cloud: {
+        color: '#00e8ff',    // 钢琴态：赛博青蓝
+        colorFar: '#b06bff', // 星云态：紫罗兰
+        star: '#dcf4ff',     // 闪烁爆点：偏冷的白，只出现在噪声场的高峰
+        rim: '#8df0ff',      // 溶解前沿：青蓝，不要纯白 —— 加法 + Bloom 会立刻过曝
+        size: 0.0078,        // 单点世界直径（uSize = 1 时），720p 下约 1.1 px
+        sizeMax: 3.4,        // 点尺寸的像素上限，防止近处糊成大光斑
+        alpha: 0.20,         // 单点不透明度（加法混合：靠数量叠出亮度）
+        bright: 1.05,        // 颜色增益
+        density: 0.85,       // 最终点数 ≈ 顶点数 × density
+      },
+
+      /* 溶解 ------------------------------------------------------------------
+         网格和点云算同一个条纹场（GLSL_STRIPE 里的 stripeField）：
+           网格：条纹值 < 前沿 → discard，那块实体消失
+           点云：条纹值 ≥ 前沿 → 不画
+         两边严格互补，所以"实体的边"和"尘的头"永远在同一条曲线上，
+         不存在两张贴图交叉淡入淡出的重影——这才是过渡自然的关键。
+         （参考项目里网格用条纹噪声、点云用水平切面，两套场并不完全一致；
+           这里统一成一个场，接缝更干净。） */
+      dissolve: {
+        bands: 18,       // 琴身高度上大约几道条纹（房屋是 ~27 道，钢琴矮，取 18）
+        edge: 0.045,     // 前沿高亮的宽度（条纹值空间）：宽了整台琴都会发白
+        rimGain: 0.45,   // 前沿额外的发光增益
+        frontMax: 1.06,  // 条纹场取值上限是 1，超过一点确保"全部化尘"
+      },
+
+      /* 形态演变（Morphing & Dissolution）-------------------------------------
+         顶点着色器里维护两个坐标缓冲：
+           position（targetPosition）→ 钢琴表面，第 7 节从模型上采样出来的点
+           aNoisePos（noisePosition）→ 无序星云，按下面这些参数烘成一片螺旋盘
+         uTransition 从 0 走到 1，钢琴就化开成一团旋转的尘埃；走回 0 又重新凝聚。
+         每颗点还各有启动延迟（stagger），所以是"从一处开始散、像多米诺一样荡开"，
+         而不是整团同时放大 —— 后者一眼就是假的。
+
+           radius    星云盘半径（世界单位）；琴身长 4.6，取 1.95 → 比琴略大一圈
+           stretch   沿长轴（X）拉长：星云和钢琴共用同一条主轴，构图才稳
+           flatten   竖直压扁 → 一片斜躺的盘，而不是一个球
+           spiral    旋臂扭转（rad）：半径越大转得越多，天然带出两条臂
+           puff      逐点抖动，打散旋臂的规整感
+           stagger   逐点延迟比例：0 = 同时散，0.55 = 明显的一层层荡开
+           spin      星云自旋（rad/s）；spinDiff 是差速，内圈快、外圈慢
+           curl      旋度场位移幅度（星云态的"涌"）；curlIdle 是贴面时的残余流动
+           twinkle   闪烁强度（0 = 不闪，1 = 满天星）
+           noiseScale 旋度场采样频率：越大涡流越碎 */
+      morph: {
+        radius: 1.95,
+        stretch: 1.28,
+        flatten: 0.62,
+        spiral: 3.10,
+        arms: 3,          // 旋臂条数（3 条：镜头里永远有两条以上可见，不会"只剩一根线"）
+        armWidth: 0.62,   // 单条旋臂的角度宽度（rad）：越小丝越细、越像流线
+        clump: 0.32,      // 被拉向团簇中心的比例：星云里的"亮气团"
+        puff: 0.18,
+        stagger: 0.55,
+        spin: 0.26,
+        spinDiff: 0.045,
+        curl: 0.95,
+        curlIdle: 0.02,
+        twinkle: 0.70,
+        noiseScale: 0.42,
+      },
+
+      /* 鼠标力场 --------------------------------------------------------------
+         F_repel = k / (d + ε)² · d̂ ，再叠一个切向分量（水被搅动会打旋）。
+         softness 是 ε² 的软化项：没有它，鼠标正中心那几颗点会被 1/d² 弹飞。
+         decay 决定"手停下之后涟漪多快平息"（1/s）。 */
+      mouse: {
+        radius: 1.30,     // 影响半径（世界单位）
+        push: 0.13,       // 排斥强度 k
+        swirl: 0.55,      // 切向旋涡相对排斥的比例
+        softness: 0.18,   // ε²
+        decay: 2.4,
+      },
+
+      /* 全息菜单（HUD）↔ 粒子力场 ----------------------------------------------
+         悬停左右两个像素锚点时，除了 DOM 自己的高光，还要给粒子场一层"定向风"。
+         它和上面的鼠标力场不是同一件事：
+           · 鼠标力场是局部的（1/d²，只扰动半径内的一小片）
+           · 这里的风是全局的，只改方向不吸不斥 —— 整团尘被吹得往一侧偏
+         参数：
+           swing     满力时的横向位移（世界单位）。0.42 ≈ 星云半径的 1/5，
+                     再多就不像风，像整团被推走了
+           lift      附带的上扬量：纯水平平移会很"平"，加一点上下起伏才有风感
+           band      风带的空间频率，越大纹路越密（一层层掠过的风纹）
+           lerp      风力跟手速度（1/s）；dirLerp 是换边时方向掉头的速度
+           trail     菜单周围洒出的加法混合碎尘（池大小 / 生成率 / 寿命 / 尺寸 */
+      hud: {
+        swing: 0.42,
+        lift: 0.13,
+        band: 0.85,
+        lerp: 6.5,
+        dirLerp: 4.5,
+        trail: {
+          count: IS_MOBILE ? 120 : 260,
+          rate: IS_MOBILE ? 46 : 92,   // 每秒生成几颗（满力时）
+          life: 1.35,                 // 基础寿命（秒），每颗再乘 0.6~1.4
+          size: 2.0,                  // 基础点径（CSS 像素）
+          speed: 0.62,                // 初速（世界单位/秒）
+          distance: 2.4,              // 碎尘离相机的距离：盖在场景前面
+        },
+      },
+
+      /* 形态循环 --------------------------------------------------------------
+         「静止 → 解体 → 流变 → 重组 → 归位」，总长 17.6 秒，比例 1 : 2 : 3 : 2 : 1。
+         每段时长只决定"谁在何时开始 / 结束"，具体形态由 sampleTimeline() 里
+         几条连续的包络给出，段与段的交接处不会跳变。 */
+      cycle: {
+        wait: 2.2,      // 静止：实体钢琴
+        dissolve: 3.8,  // 解体：实体化尘（网格淡出、尘淡入），此时尘还贴着琴面
+        morph: 5.6,     // 流变：尘脱离琴面 → 旋度星云，自旋 + 翻涌
+        reform: 3.8,    // 重组：星云重新凝聚回钢琴轮廓，实体随后一格一格焊回来
+        settle: 2.2,    // 归位：实体钢琴
+      },
+
+      /* 律动：像水面一样涌动的波场 --------------------------------------------
+         波形来自三层正弦（方向 / 波长 / 速度全不同，1 : 1.57 : 2.37），
+         波峰因此永远对不齐 —— 这是"水面涌动"和"一条线扫过去"的区别；
+         再让一层缓慢漂移的 Perlin 把波脊掰弯（warp），每一波的形状都不一样。
+
+         关键在于位移的"方向组合"（见顶点着色器 ②）：
+           只有"沿各自法线散开"时，点云只是变厚了一层 —— 轮廓还在，但看不出
+           波在哪、往哪走，和上一版的"整体膨胀"几乎分不开（这个坑踩过）。
+           所以主视觉改成竖直起伏：整片尘像水面上的倒影一样上下涌，
+           再叠一点沿波传播方向的水平推移和沿法线的鼓起，才有水的黏滞感。
+
+           lift      竖直起伏幅度（世界单位）：0.34 约琴身高度的三成，别再往上加
+           amp       沿表面法线鼓起的幅度：给体积，不该喧宾夺主
+           length    主波波长；琴身长约 4.6，取 2.6 → 同一时刻约 1.8 个波峰
+           speed     主波角速度（rad/s）；2.2 → 一个波峰约 5 秒走完整个琴身
+           warp      波脊被 Perlin 掰弯的程度（0 = 规整斜纹，1 = 完全碎成涌浪）
+           sizePulse 波峰处点尺寸的放大比例
+           twist     沿琴身高度扭转的角度（rad），让整团尘像一缕被拨动的水汽
+           bob       整团尘上下浮动的幅度（世界单位） */
+      wave: {
+        lift: 0.34,
+        amp: 0.16,
+        length: 2.6,
+        speed: 2.2,
+        warp: 0.30,
+        sizePulse: 0.22,
+        twist: 0.10,
+        bob: 0.08,
+      },
+
+      /* 实体网格（静止 / 归位段） --------------------------------------------
+         律动段只渲染尘，静止段渲染真材质网格，两者交叉淡入淡出。 */
+      solid: {
+        enabled: true,
+        ambient: 1.35,   // 环境光（半球）：给暗面一点冷蓝，别让琴体掉进纯黑
+        key: 4.2,        // 主光（右上前方）
+        rim: 2.0,        // 背侧轮廓光（紫罗兰）
+        metalness: 0.38, // 见 buildSolidModel 里那段注释：模型没写 metallicFactor
+        roughnessMin: 0.26,
+        envIntensity: 1.0,
+      },
+
+      /* 构图抬升 --------------------------------------------------------------
+         整幅画面在竖直方向抬高多少 CSS 像素。钢琴原本视觉重心偏下，抬上去两个
+         锚点按钮的高度（桌面 38×2 / 移动端 32×2，一个按钮 = CSS 里 .nav-btn 的
+         font-size + padding + border），琴体就落在画面中线偏上，上下留白才均衡。
+         再往上就要撞到顶部锚点了。
+
+         做法是"移轴"而不是搬模型：camera.setViewOffset 只平移投影矩阵，
+         琴体依旧绕 controls.target 原地自转，透视、光比、鼠标力场全都不变。
+         把模型往上挪同样能凑出这个构图，但自转时它会绕着画面中心划圈（偏心摆），
+         一眼就露馅 —— 所以这里必须动相机、不动模型。 */
+      frame: {
+        liftPx: IS_MOBILE ? 64 : 76,
+      },
+
+      /* 后期：加法混合的粒子本来就亮，星云态还要再"发光"一点。
+         threshold 压到 0.34 → 中等亮度就能被晕开；strength 在 animate() 里
+         还会随形态 m 再乘一个增益（星云态 +105%，画质降级时略减）。 */
+      bloom: { strength: 0.55, radius: 0.85, threshold: 0.34 },
+    };
+
+    /* 点云用到的两个常量都收进 CONFIG.cloud，这里不再单独定义：
+       POINT_ALPHA / COLOR_GAIN 那一套是为了给"加法混合 + 30 万大点"调曝光用的，
+       换成参考项目的实体小圆点 + 平色之后已经没有意义了。 */
+
+    // 极简赛博调色盘（星空背景与 UI 在用；点云的颜色在 CONFIG.cloud，
+    // 由顶点着色器按形态 m 与星云半径实时插值，不从这里取）
+    const PALETTE = {
+      deep:   new THREE.Color('#0b3d8f'), // 深空蓝
+      cyan:   new THREE.Color('#00ffff'), // 电光青
+      violet: new THREE.Color('#9a5cff'), // 梦幻紫罗兰
+      white:  new THREE.Color('#f2fbff'), // 星光白
+    };
+
+    /* ==========================================================================
+       1. DOM 引用
+       ========================================================================== */
+
+    /* 画面上不出现任何文字：HUD（标题 / 状态 / 粒子数 / 帧率 / 操作提示）已整块删除，
+       所以这里只剩画布、载入进度条（纯一根 1px 线），以及模型载入失败时的兜底提示。 */
+    const canvas   = document.getElementById('stage');
+    const elLoader = document.getElementById('loader');
+    const elBar    = document.getElementById('bar');
+    const elErr    = document.getElementById('err');
+
+    /* 全息菜单的两个像素锚点（左右对称）。它们不只是装饰：
+       悬停 / 聚焦的侧别会被换算成粒子场里的一个定向力（见 6.5 节）。
+       side 必须跟着屏幕位置走，而不是跟着文字走 —— 左侧 ART WORKS 就是 -1。 */
+    const navButtons = [
+      { el: document.getElementById('nav-works'), side: -1 },   // 左：ART WORKS
+      { el: document.getElementById('nav-about'), side: 1 },    // 右：ABOUT ME
+    ].filter((b) => !!b.el);
+
+    /* ==========================================================================
+       2. 渲染器 / 场景 / 相机 / 控制器
+       ========================================================================== */
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: false,          // 粒子 + Bloom 时 MSAA 收益很小，省性能
+      alpha: false,
+      powerPreference: 'high-performance',
+      stencil: false,
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.75 : 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    // 清除色必须是纯黑。
+    // 原因：这个值进入 RenderTarget 后会被当作"线性"数值，再经 ACES 与 sRGB 编码放大约 15 倍——
+    // 写成 0x02030a 时，屏幕上实际会渲染成 ~#262626 的灰，整幅画面蒙上一层奶白色雾。
+    // 深空的蓝色调交给 CSS 的 .vignette 与粒子自身，这里保持真黑。
+    renderer.setClearColor(0x000000, 1);
+    // 点云里最亮的点会略微超过 1，交给 ACES 收顶，避免叠出硬白斑
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+
+    const scene = new THREE.Scene();
+    // 雾色同样按线性处理，所以只给极低的一点点蓝，远处粒子自然衰减进黑底
+    scene.fog = new THREE.FogExp2(0x000103, 0.032);
+
+    /* 程序化环境贴图 ----------------------------------------------------------
+       黑漆琴体几乎全靠"反射"成形。模型材质是 PBR 的，而场景里既没有 HDRI、
+       也没有别的物体可反射——纯黑环境下金属/清漆表面等价于没有漫反射，
+       琴身直接黑成剪影（实测：只有音板因为贴图偏漫反射还看得见）。
+       这里用 canvas 画一张"影棚"等距柱状图当 environment：
+       上冷下暗的地平线渐变 + 右上一团暖主光 + 左后一团紫补光，
+       经 PMREM 预滤波后交给所有 PBR 材质。开销只有加载时一次卷积，运行时为零。 */
+    function buildStudioEnvironment() {
+      const w = 512;
+      const h = 256;
+      const cv = document.createElement('canvas');
+      cv.width = w;
+      cv.height = h;
+      const ctx = cv.getContext('2d');
+
+      // 天光渐变：上方偏冷、地平线附近略亮、地面很暗
+      const sky = ctx.createLinearGradient(0, 0, 0, h);
+      sky.addColorStop(0.0, '#1d3050');
+      sky.addColorStop(0.44, '#080e19');
+      sky.addColorStop(0.56, '#101724');
+      sky.addColorStop(1.0, '#02030a');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, w, h);
+
+      const glow = (cx, cy, r, color) => {
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g.addColorStop(0, color);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      };
+      glow(w * 0.68, h * 0.20, w * 0.30, 'rgba(255,238,214,0.92)'); // 主光（暖白）
+      glow(w * 0.16, h * 0.44, w * 0.26, 'rgba(120,92,255,0.78)'); // 背侧补光（紫）
+      glow(w * 0.50, h * 0.92, w * 0.44, 'rgba(28,76,138,0.55)');  // 地面反射（冷蓝）
+
+      const tex = new THREE.CanvasTexture(cv);
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      const env = pmrem.fromEquirectangular(tex).texture;
+      pmrem.dispose();
+      tex.dispose();
+      return env;
+    }
+
+    scene.environment = buildStudioEnvironment();
+
+    const camera = new THREE.PerspectiveCamera(
+      42,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      200
+    );
+    camera.position.set(0.15, 1.72, 6.0);
+
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;       // 惯性阻尼，手感更"软"
+    controls.dampingFactor = 0.055;
+    controls.rotateSpeed = 0.62;
+    controls.zoomSpeed = 0.72;
+    controls.enablePan = false;          // 锁平移，避免把装置拖出画面
+    controls.minDistance = 2.6;
+    controls.maxDistance = 13;
+    controls.minPolarAngle = Math.PI * 0.12;
+    controls.maxPolarAngle = Math.PI * 0.86;
+    controls.target.set(0, 0.15, 0);
+    // 空闲时缓慢自转；一旦用户交互就停（更像展品）
+    controls.autoRotate = !IS_MOBILE;
+    controls.autoRotateSpeed = 0.34;
+
+    /* ==========================================================================
+       2.6 鼠标力场：屏幕坐标 → 世界坐标
+       --------------------------------------------------------------------------
+       鼠标是二维的，粒子是三维的。这里把射线和一个"过控制器目标点、垂直于视线"
+       的平面求交，得到一个跟着相机一起转的世界坐标 —— 比钉死一个固定 z 平面稳得多
+       （视角一转，力场中心就会跑到粒子前面去）。
+
+       energy 记录鼠标最近有多活跃，并按指数衰减：手停下时涟漪会自己平息，
+       而不是永远把那一块粒子顶在那里 —— 这是"水"和"风扇"的区别。
+       ========================================================================== */
+
+    const pointer = {
+      ndc: new THREE.Vector2(0, 0),
+      world: new THREE.Vector3(0, 0, 0),
+      energy: 0,
+      seen: false,
+    };
+
+    const raycaster = new THREE.Raycaster();
+    const pointerPlane = new THREE.Plane();
+    const camForward = new THREE.Vector3();
+
+    window.addEventListener('pointermove', (ev) => {
+      pointer.ndc.x = (ev.clientX / window.innerWidth) * 2 - 1;
+      pointer.ndc.y = -(ev.clientY / window.innerHeight) * 2 + 1;
+      pointer.energy = Math.min(1, pointer.energy + 0.55);
+      pointer.seen = true;
+    }, { passive: true });
+
+    /**
+     * 每帧把鼠标投到世界空间，并让能量衰减
+     * @param {number} dt 帧间隔（秒）
+     */
+    function updatePointerWorld(dt) {
+      pointer.energy *= Math.exp(-CONFIG.mouse.decay * dt);
+      if (!pointer.seen) return;
+
+      camera.getWorldDirection(camForward);
+      pointerPlane.setFromNormalAndCoplanarPoint(camForward, controls.target);
+      raycaster.setFromCamera(pointer.ndc, camera);
+
+      if (raycaster.ray.intersectPlane(pointerPlane, pointer.world)) {
+        uniforms.uMouse.value.copy(pointer.world);
+        // 着色器里比较的是"局部坐标的粒子位置"，点云自己还有浮沉/微摆，
+        // 所以必须用逆矩阵把世界坐标换算回去 —— 否则整团在浮动时力场会错位。
+        if (particleSystem) {
+          particleSystem.updateMatrixWorld();
+          particleSystem.worldToLocal(uniforms.uMouse.value);
+        }
+      }
+      uniforms.uMousePower.value = pointer.energy;
+    }
+
+    /* ==========================================================================
+       3. GLSL：3D Simplex 噪声 + Curl Noise（旋度噪声）
+       --------------------------------------------------------------------------
+       Curl Noise 的本质是对一个随机向量场 F 求旋度 ∇×F。
+       旋度场天然无散度（∇·(∇×F)=0），所以粒子永远不会被"吸"进某个点，
+       而是沿着等值线翻卷、扩散、回流 —— 这正是烟雾 / 星尘的运动特征。
+       ========================================================================== */
+
+    const GLSL_NOISE = /* glsl */ `
+      // ---- Ashima Arts 的 3D Simplex 噪声（Stefan Gustavson 优化版）----
+      vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
+      vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+
+      float snoise(vec3 v) {
+        const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);
+        const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+
+        vec3 i  = floor(v + dot(v, C.yyy));
+        vec3 x0 = v - i + dot(i, C.xxx);
+
+        vec3 g = step(x0.yzx, x0.xyz);
+        vec3 l = 1.0 - g;
+        vec3 i1 = min(g.xyz, l.zxy);
+        vec3 i2 = max(g.xyz, l.zxy);
+
+        vec3 x1 = x0 - i1 + C.xxx;
+        vec3 x2 = x0 - i2 + C.yyy;
+        vec3 x3 = x0 - D.yyy;
+
+        i = mod289(i);
+        vec4 p = permute(permute(permute(
+                   i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                 + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                 + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+
+        float n_ = 0.142857142857;
+        vec3 ns = n_ * D.wyz - D.xzx;
+
+        vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+
+        vec4 x_ = floor(j * ns.z);
+        vec4 y_ = floor(j - 7.0 * x_);
+
+        vec4 x = x_ * ns.x + ns.yyyy;
+        vec4 y = y_ * ns.x + ns.yyyy;
+        vec4 h = 1.0 - abs(x) - abs(y);
+
+        vec4 b0 = vec4(x.xy, y.xy);
+        vec4 b1 = vec4(x.zw, y.zw);
+
+        vec4 s0 = floor(b0) * 2.0 + 1.0;
+        vec4 s1 = floor(b1) * 2.0 + 1.0;
+        vec4 sh = -step(h, vec4(0.0));
+
+        vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+        vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+
+        vec3 p0 = vec3(a0.xy, h.x);
+        vec3 p1 = vec3(a0.zw, h.y);
+        vec3 p2 = vec3(a1.xy, h.z);
+        vec3 p3 = vec3(a1.zw, h.w);
+
+        vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
+        p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+
+        vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
+        m = m * m;
+        return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
+      }
+
+      // 用三个错开坐标的噪声组成向量场 F(p)
+      vec3 snoiseVec3(vec3 p) {
+        return vec3(
+          snoise(p),
+          snoise(p + vec3(137.31, 251.77, 419.13)),
+          snoise(p + vec3(611.51, 83.27, 947.39))
+        );
+      }
+
+      // 有限差分求旋度：curl(F) = ∇×F
+      vec3 curlNoise(vec3 p) {
+        const float e = 0.16;
+        vec3 dx = vec3(e, 0.0, 0.0);
+        vec3 dy = vec3(0.0, e, 0.0);
+        vec3 dz = vec3(0.0, 0.0, e);
+
+        vec3 px0 = snoiseVec3(p - dx), px1 = snoiseVec3(p + dx);
+        vec3 py0 = snoiseVec3(p - dy), py1 = snoiseVec3(p + dy);
+        vec3 pz0 = snoiseVec3(p - dz), pz1 = snoiseVec3(p + dz);
+
+        float cx = (py1.z - py0.z) - (pz1.y - pz0.y);
+        float cy = (pz1.x - pz0.x) - (px1.z - px0.z);
+        float cz = (px1.y - px0.y) - (py1.x - py0.x);
+
+        return vec3(cx, cy, cz) / (2.0 * e);
+      }
+    `;
+
+    /* ==========================================================================
+       3.5 溶解条纹场（网格与点云共用）
+       --------------------------------------------------------------------------
+       取自 NewProject/app/house/house-model-stage.js 的 houseStripe：
+       沿 Y 的正弦条纹 + 横向抖动 + 一点颗粒噪声。
+
+       关键在于"共用"：网格的片元着色器和点云的顶点着色器调用的是同一个
+       stripeField()，参数也一样（世界坐标 + 同一个 uNoiseFreq），
+       所以任意时刻两边的分界线完全重合 —— 实体消失的那一格，尘就在那一格长出来。
+       这就是参考项目里那个"模型溶成点云"看起来毫不生硬的根本原因。
+
+       返回值 0..1；1.06 以上表示"全部化尘"，0 以下表示"完整实体"。
+       ========================================================================== */
+
+    const GLSL_STRIPE = /* glsl */ `
+      float hash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+
+      float vnoise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x),
+                   mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x), u.y);
+      }
+
+      float stripeField(vec3 p, float freq) {
+        // 横竖抖动：条纹不是水平直线，而是被 x/z 上的低频噪声推着起伏
+        float wobble = vnoise(vec2(p.x * 0.75 + 2.4, p.z * 0.75 + 7.1));
+        float bands = 0.5 + 0.5 * sin(p.y * freq + wobble * 1.65);
+        float grain = vnoise(vec2(p.y * freq * 0.35, wobble * 3.0));
+        return clamp(mix(bands, grain, 0.18), 0.0, 1.0);
+      }
+    `;
+
+    /* 溶解相关的 uniform 只有这一份：网格材质（onBeforeCompile 注入）与
+       点云材质共享同一批对象，所以两边永远同一时刻、同一个前沿值。 */
+    const dissolveUniforms = {
+      uFront:     { value: 0 },                          // 当前前沿（0 = 完整实体，>1 = 全部化尘）
+      uEdge:      { value: CONFIG.dissolve.edge },       // 前沿高亮宽度
+      uNoiseFreq: { value: 60 },                         // 条纹频率（rad / 世界单位），载入后按模型高度算
+      uRimColor:  { value: new THREE.Color(CONFIG.cloud.rim) },
+      uRimGain:   { value: CONFIG.dissolve.rimGain },
+    };
+
+    /* ==========================================================================
+       4. 顶点着色器
+       --------------------------------------------------------------------------
+       一颗粒子的最终位置 = 形态插值 + 一层层叠上去的场与力：
+
+         ① 溶解  和网格算同一个条纹场，网格 discard 的地方才画这颗点
+         ② 形态  在两个坐标缓冲之间插值：targetPosition（钢琴）→ noisePosition（星云）
+         ③ 旋度  curl noise 驱动：无散度，不会把粒子吸进某个点，像烟 / 星尘那样翻卷
+         ④ 呼吸  水面波场（三层正弦 + Perlin 掰弯），只在"还没散开"时起作用
+         ⑤ 扭转  转角随高度变化，整团尘像被拨动的一缕水汽
+         ⑥ 力场  鼠标的 1/d² 排斥 + 切向旋涡，手过处如石子入水
+         ⑥.5 风  全息菜单悬停时叠上去的定向风带：整团尘微微侧倾（见 ⑤.5）
+         ⑦ 着色  青蓝 ↔ 紫罗兰按形态插值，亮度由噪声场与逐点闪烁调制
+
+       全部在 GPU 上算：CPU 每帧只更新不到十个 uniform，八万颗粒子的位移零成本。
+       注意 ③ 与 ④ 的分工：③ 负责"位置的有机感"，必须是无散度旋度场；
+       任何一条 sin 位移都会立刻把它拉回机械感（这一版因此删掉了旧的正弦涡旋）。
+       ========================================================================== */
+
+    const VERTEX_SHADER = /* glsl */ `
+      // —— 两个坐标缓冲 ——
+      //   position（内建） = targetPosition：钢琴表面（第 7 节采样出来的点）
+      //   aNoisePos        = noisePosition ：无序星云（第 8.5 节预烘）
+      // 形态插值只在这两个缓冲之间做，除此之外的一切位移都是"叠加"，不改变它们的语义。
+      attribute vec3 aNoisePos;
+      attribute vec3 aScatter;   // 抬起方向：表面法线（78%）+ 随机（30%），长度已烘好
+      attribute vec4 aRand;      // x 尺寸抖动 / y 降级抽样 / z 错开+闪烁相位 / w 色相偏移
+
+      uniform float uTime;
+      uniform float uFront;         // 溶解前沿（与网格共享同一个 uniform 对象）
+      uniform float uEdge;          // 前沿高亮宽度
+      uniform float uNoiseFreq;     // 条纹频率（与网格完全一致）
+      uniform float uRimGain;
+
+      uniform float uTransition;    // 形态插值：0 = 钢琴轮廓，1 = 抽象星云
+      uniform float uSurge;         // "活着"的程度：呼吸波 / 流场 / 扭转的总闸门
+      uniform float uStagger;       // 逐点延迟：散开是逐层荡开的，不是整体缩放
+      uniform float uSpin;          // 星云自旋（rad/s）
+      uniform float uSpinDiff;      // 差速：半径越大转得越慢，旋臂才会被拉成螺旋
+      uniform float uCurl;          // 旋度场位移幅度
+      uniform float uCurlIdle;      // 贴面时的残余流动（一点点"还活着"）
+      uniform float uTwinkle;       // 闪烁强度
+      uniform float uNebulaR;       // 星云半径（颜色分区：中心青 → 外圈紫）
+
+      uniform float uLift;          // 呼吸波：竖直起伏幅度
+      uniform float uAmp;           // 呼吸波：沿法线鼓起的幅度
+      uniform vec3  uWaveK;         // 主波方向 × (2π / 波长)
+      uniform vec3  uWaveK2;        // 第二层波：斜着穿过琴身
+      uniform vec3  uWaveK3;        // 第三层波：短波细纹
+      uniform float uWaveW;         // 主波角速度
+      uniform float uWarp;          // 波脊被 Perlin 掰弯的程度
+      uniform float uTwist;         // 沿高度扭转的角度（rad）
+      uniform float uSizePulse;     // 波峰处点尺寸放大
+
+      uniform vec3  uMouse;         // 鼠标：过目标点、垂直于视线的平面上的世界坐标（已换算到点云局部空间）
+      uniform float uMousePower;    // 0 = 手没动，1 = 正在快速划过
+      uniform float uMouseRadius;   // 影响半径
+      uniform float uMousePush;     // k（排斥强度）
+      uniform float uMouseSwirl;    // 切向分量：被搅起来的水才会打旋
+      uniform float uMouseSoft;     // ε²，软化中心，避免 1/d² 数值爆炸
+
+      // —— 全息菜单的定向风场（和上面的鼠标力场是两套）——
+      uniform vec3  uFlowDir;       // 风向：以屏幕左右为主轴的单位向量
+      uniform float uFlowPower;     // 0 = 无风，1 = 满力（JS 侧指数平滑过）
+      uniform float uFlowAmp;       // 满力时的横向位移量（世界单位）
+      uniform float uFlowLift;      // 附带的上扬量
+      uniform float uFlowBand;      // 风带的空间频率
+
+      uniform float uSize;
+      uniform float uSizeMax;
+      uniform float uPixelRatio;
+      // 点尺寸的透视换算系数 = dpr * (画布高度/2) / tan(fov/2)
+      uniform float uProjScale;
+      uniform float uNoiseScale;
+      uniform vec3  uColor;         // 钢琴态：赛博青蓝
+      uniform vec3  uColorFar;      // 星云态：紫罗兰
+      uniform vec3  uColorStar;     // 闪烁爆点
+      uniform vec3  uRimColor;      // 前沿高亮色
+      uniform float uBright;        // 颜色增益
+      uniform float uAlpha;         // 单点不透明度（加法混合下要很小）
+      uniform float uKeep;          // 降级抽样阈值（1 = 全画）
+
+      varying vec3 vColor;
+      varying float vAlpha;
+
+      ${GLSL_NOISE}
+      ${GLSL_STRIPE}
+
+      // 绕 Y 轴旋转（不用 mat2，省得纠结列主序）
+      vec3 rotateY(vec3 p, float a) {
+        float c = cos(a), s = sin(a);
+        return vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z);
+      }
+
+      /* 呼吸波：三层波 + Perlin 掰弯 --------------------------------------------
+         三层的方向 / 波长 / 速度都不同（速度比 1 : 1.57 : 2.37），波峰永远对不齐
+         —— 这是"水面涌动"和"一条线扫过去"的区别。最后一层 Perlin 把波脊掰弯，
+         噪声自己也在漂移，所以每一波涌起来的形状都不一样。
+         返回约 -1（波谷）.. 1（波峰）。 */
+      float waveHeight(vec3 p) {
+        float h = sin(dot(p, uWaveK)  - uTime * uWaveW)
+                + 0.55 * sin(dot(p, uWaveK2) - uTime * uWaveW * 1.57 + 2.1)
+                + 0.26 * sin(dot(p, uWaveK3) - uTime * uWaveW * 2.37 + 4.2);
+        h /= 1.81;                                     // 精确归一到 ±1
+
+        float bend = snoise(p * (uNoiseScale * 1.7) + vec3(0.0, uTime * 0.09, uTime * 0.07));
+        return (h + bend * uWarp) / (1.0 + uWarp);     // 仍约 ±1，warp 越大越"涌动"
+      }
+
+      /* 旋度流场：两个倍频叠加 ------------------------------------------------
+         curlNoise 一次 18 个 snoise，两层就是 36 个 —— 移动端只跑一层（见 defines）。
+         大漩涡（低频）负责"整片尘埃往哪卷"，小涡流（2.35 倍频）负责"碎沫"。
+         两个倍频各带一个与主体无关的时间偏移，场才会自己翻滚，
+         而不是整块噪声平移过去（那看起来就像一张纸在滑）。 */
+      vec3 curlFlow(vec3 p, float t) {
+        vec3 c = curlNoise(p + vec3(0.0, t * 0.115, t * 0.074));
+        #if CURL_OCTAVES > 1
+          c += curlNoise(p * 2.35 + vec3(t * 0.205, -t * 0.138, t * 0.096)) * 0.42;
+        #endif
+        return c;
+      }
+
+      void main() {
+        vec3 targetPosition = position;      // 缓冲 A：具象的钢琴
+        vec3 noisePosition  = aNoisePos;     // 缓冲 B：无形的星云
+
+        /* ① 溶解：算的是和网格同一个条纹场。
+              条纹值 ≥ 前沿的位置不画 —— 网格恰好在这些位置 discard，
+              所以"实体消失"与"尘出现"是同一条曲线：没有重影，也没有空档。 */
+        float n = stripeField(targetPosition, uNoiseFreq);
+        if (n >= uFront || aRand.y > uKeep) {
+          gl_PointSize = 0.0;
+          gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+          vAlpha = 0.0;
+          vColor = uColor;
+          return;
+        }
+
+        /* 前沿高亮：只有紧贴分界线的点才亮。uFront ≥ 1 时全琴已化尘，不再有前沿 */
+        float rimOn = step(0.0005, uFront) * (1.0 - step(1.0, uFront));
+        float rim = (1.0 - clamp(abs(n - uFront) / max(uEdge, 0.0001), 0.0, 1.0)) * rimOn;
+
+        /* ② 形态插值（Morphing）
+              uTransition 统一往前走，但每颗点按 aRand.z 错开启动时刻：
+                  k = clamp(T * (1 + S) - stag * S, 0, 1)
+              T = 0 时所有 k = 0（严格贴回钢琴，溶解接缝一像素都不动），
+              T = 1 时所有 k ≥ 1（全部到位，不会再"欠一点"）。
+              中间那一段，先松脱的点已经在星云里，后松脱的还挂在琴面上 ——
+              这一层错峰就是"织物质感"和"整体缩放"的分界线。 */
+        float k = clamp(uTransition * (1.0 + uStagger) - aRand.z * uStagger, 0.0, 1.0);
+        float m = k * k * (3.0 - 2.0 * k);   // smoothstep：首尾都收得住
+
+        /* ③ 星云自旋：差速旋转（内圈快、外圈慢）—— 旋臂会被越拉越开，
+              再叠上旋度场，整团尘埃就是"在转的一口深水"，不是一张漂移的贴图。 */
+        float rN = length(noisePosition.xz);
+        float spin = uTime * max(0.03, uSpin - uSpinDiff * min(rN, 6.0));
+        vec3 nebula = rotateY(noisePosition, spin);
+
+        /* ④ 两个缓冲插值 + 星云整体的一次"吸气/呼气" */
+        float inhale = 0.5 + 0.5 * sin(uTime * 1.05);
+        nebula *= 1.0 + (0.10 * inhale - 0.03) * m;
+        vec3 pos = mix(targetPosition, nebula, m);
+
+        /* ⑤ 旋度流场：脱离琴面之后的一切有机流动都从这里来。
+              flowAmt 由两项决定：
+                · (uCurlIdle + uCurl * m) —— 越像星云，涌得越狠
+                · alive（= uSurge）        —— 静止/归位段严格归零，
+                  尘因此一分一毫都不会离开琴面，溶解接缝才不会错位。
+              注意：这里没有任何 sin 位移。位置的有机感全部来自 ∇×F。 */
+        float alive = clamp(uSurge, 0.0, 1.0);
+        vec3 flowCoord = pos * uNoiseScale;
+        float flowAmt = (uCurlIdle + uCurl * m) * alive;
+        pos += curlFlow(flowCoord, uTime) * flowAmt;
+
+        /* ⑤.5 定向风场（全息菜单悬停联动）
+              旋度场是无散的 —— 它只会"翻卷"，不会把整团尘吹向一边。
+              "风吹过星尘"必须再叠一层有方向的位移：uFlowDir 以屏幕左右为主轴，
+              在 JS 里做过指数平滑，所以鼠标移开时风是"停"下来的，不是"断"的。
+              这里也不是整块平移：相位里带 dot(pos, dir)，风带从一侧扫到另一侧、
+              一层层掠过去；同一个点阵里也分快慢，尘团因此微微"侧倾"。
+              windForce 用 m（形态量）而不是只看 surge —— 化尘 / 归位段 m ≈ 0，
+              风严格为 0，贴面的尘一分一毫都不会被吹离琴面，溶解接缝才对得上网格；
+              dissolve 段留 0.22·alive 的一点余量，让风在"刚化尘"时也能看见。 */
+        float windPhase = dot(pos, uFlowDir) * uFlowBand - uTime * 0.62 + pos.y * 0.8;
+        float windGate = 0.62 + 0.38 * sin(windPhase);
+        float windForce = max(smoothstep(0.02, 0.55, m), 0.22 * alive);
+        pos += uFlowDir * (uFlowAmp * uFlowPower * windGate * windForce);
+        pos.y += uFlowLift * uFlowPower * windForce * cos(windPhase * 0.7);
+
+        /* ⑥ 呼吸：水面波场（只作用在"还没散开"的那部分）
+              surf 随 m 衰减 —— 星云态不需要上下平动，那里交给旋度场。
+              a) 竖直起伏：整片尘像水面倒影一样上下涌（唯一"看得出在动"的那层）
+              b) 水平推移：沿主波传播方向来回推，带出液体的黏滞感
+              c) 沿法线鼓起：波峰处尘"立"起来、波谷贴回琴面，保住体积 */
+        float w = waveHeight(targetPosition);
+        float swell = 0.5 + 0.5 * w;
+        float surf = alive * (1.0 - 0.72 * m);
+        pos.y  += uLift * surf * w;
+        pos.xz += normalize(uWaveK.xz) * (uLift * 0.9 * surf * w);
+        // normalize(aScatter) 削掉烘好的 0.75~1.25 随机长度：同一片表面的点才会
+        // 一起动、波带边缘才是清楚的；不 normalize 又糊回一层雾。
+        pos += normalize(aScatter) * (uAmp * surf * pow(swell, 1.6));
+
+        /* ⑦ 扭转：转角随高度变化，整团尘被拧成一条缓缓流动的水汽 */
+        pos = rotateY(pos, uTwist * surf * sin(targetPosition.y * 1.7 + uTime * 0.45));
+
+        /* ⑧ 鼠标力场：F = k / (d + ε)² · d̂
+              dist 里加 1e-4 防止除以 0；uMouseSoft 是 ε² 的软化项，
+              没有它的话鼠标正中心那几颗点会被 1/d² 弹到画面外去。
+              gate 用 smoothstep 做"光滑截断"：半径之外力严格为 0，
+              但过渡是连续的 —— 否则粒子会在圆的边界上看到一圈硬折痕。
+              再叠一个 cross(up, d) 的切向分量：水被搅动时会打旋，不会只是被推开。 */
+        vec3 dm = pos - uMouse;
+        float dist = length(dm) + 1e-4;
+        // 注意不能写成 smoothstep(r, r * 0.12, d)：GLSL 规定 edge0 ≥ edge1 时结果未定义
+        float gate = 1.0 - smoothstep(uMouseRadius * 0.12, uMouseRadius, dist);
+        vec3 mdir = dm / dist;
+        float fall = uMousePush / (dist * dist + uMouseSoft);
+        float amp = fall * uMousePower * gate;
+        vec3 mtang = normalize(cross(vec3(0.0, 1.0, 0.0), mdir) + vec3(1e-4));
+        pos += (mdir + mtang * uMouseSwirl) * amp;
+
+        /* ⑨ 颜色：青蓝 → 紫罗兰，明暗跟着旋度场的低频道走
+              颜色不是一成不变的平色：hue 随形态 m、逐点偏移、以及空间低频噪声变化，
+              于是星云里天然会出现"青色核心 + 紫色外晕"的层次，而不是整团一个色。
+              明暗交替（twinkle）在两个尺度上同时发生：
+                · 每颗点自己的相位（高频闪烁，像星）
+                · band 是一整片空间的低频噪声（成片的星尘一起呼吸） */
+        float band = snoise(flowCoord * 0.62 + vec3(0.0, uTime * 0.22, 0.0));
+        float hot = clamp(0.5 + 0.5 * band, 0.0, 1.0);
+
+        /* 闪烁 = 慢脉动 + 稀疏爆闪。
+           只用 sin 会变成"整片一起呼吸"的塑料感；乘一个 16 次方的窄峰，
+           才有"偶尔有一颗突然亮一下"的星感（加法混合下特别明显）。 */
+        float phase = uTime * (1.4 + aRand.w * 3.4) + aRand.z * 43.0;
+        float twinkle = 0.55 + 0.45 * sin(phase);
+        twinkle = mix(1.0, twinkle, uTwinkle * (0.35 + 0.65 * m));
+        float spark = pow(clamp(0.5 + 0.5 * sin(phase * 0.37 + aRand.w * 19.0), 0.0, 1.0), 16.0);
+
+        /* 配色是"空间"的，不只是形态的：
+           星云半径归一后，中心保持赛博青蓝、外圈推向紫罗兰 —— 于是化开的过程
+           天然出现"青色的核 + 紫色的晕"，这就是通透感的来源。
+           m = 0 时整个 hue 退回青蓝（钢琴态不该有紫）。 */
+        float rNorm = clamp(length(noisePosition.xz) / max(uNebulaR, 0.001), 0.0, 1.0);
+        float spatial = mix(0.04, 0.84, smoothstep(0.06, 0.95, rNorm));
+        float hue = clamp(mix(0.05, spatial, m) + 0.15 * (aRand.w - 0.5) + 0.10 * hot, 0.0, 1.0);
+        vec3 col = mix(uColor, uColorFar, hue);
+        col = mix(col, uColorStar, clamp(pow(hot, 3.0) * (0.10 + 0.28 * m) + rim * 0.55, 0.0, 1.0));
+        // 最后那个 (0.72 + 1.65 * m) 是"密度补偿"：星云态粒子摊在约 8 倍的体积里，
+        // 单位像素上的叠加次数掉了一个数量级 —— 不把单点提亮，整团就会灰掉；
+        // 而 m = 0 时要压到 0.72，因为那时候八万颗点全挤在琴面上，最容易烧成白板。
+        col *= (0.55 + 0.95 * hot) * twinkle * (1.0 + surf * 0.26 * w) * (0.72 + 1.65 * m);
+        // 风带亮边：被风扫过的那一层尘略微提亮 —— 这是"看见风"的线索，
+        // 也让暗处的悬停反馈同样成立（加法混合下这点亮度几乎不花性能）。
+        // 2.6316 = 1 / 0.38，把 windGate 的 0.62~1.0 区间拉回 0~1。
+        col *= 1.0 + 0.38 * uFlowPower * clamp((windGate - 0.62) * 2.6316, 0.0, 1.0);
+        col += uColorStar * spark * 1.6 * m;   // 爆闪：只给星云态，钢琴态保持干净
+
+        vColor = col * uBright * (1.0 + rim * uRimGain);
+
+        /* ⑩ 透视点尺寸：远处的点更小；星云态点略大（散的尘埃本来就该更蓬）
+              下限钉住 1 个 CSS 像素，否则亚像素的点会跟着相机闪烁。 */
+        vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+        float depthFade = 1.0 - smoothstep(9.0, 26.0, -mv.z);
+        float pulse = 1.0 + uSizePulse * w * surf + 0.62 * m;
+        float size = uSize * (0.70 + aRand.x * 0.60) * pulse * uProjScale / max(0.05, -mv.z);
+        gl_PointSize = clamp(size, 1.0 * uPixelRatio, uSizeMax * uPixelRatio);
+        gl_Position = projectionMatrix * mv;
+        // 尘贴着琴面时必须往相机方向压一点点，否则和网格 z-fighting 出麻点
+        gl_Position.z -= 0.006 * gl_Position.w;
+
+        vAlpha = clamp(
+          uAlpha * depthFade * (0.60 + 0.40 * hot) * (1.0 + rim * 0.7) * (0.75 + 0.25 * twinkle) * (0.82 + 1.08 * m),
+          0.0, 1.0
+        );
+      }
+    `;
+
+    /* ==========================================================================
+       5. 片元着色器：加法混合的星点（AdditiveBlending）
+       --------------------------------------------------------------------------
+       加法混合下 rgb 会被 alpha 乘一次再叠到画布上，所以"一颗点多亮"完全由
+       这条衰减曲线决定。内核亮、外晕很淡：
+           core = (1-d)^2.6   → 一颗星该有的那点硬芯
+           halo = (1-d)^1.15  → 周围一圈薄雾，让八万颗点能连成一片体积
+       不要再回到 NormalBlending：加法 + 极黑底 + Bloom 三者叠起来，
+       画面里每一处亮度都是"有多少粒子经过这里"，这才是星尘该有的通透感。
+       ========================================================================== */
+
+    const FRAGMENT_SHADER = /* glsl */ `
+      varying vec3 vColor;
+      varying float vAlpha;
+
+      void main() {
+        float d = length(gl_PointCoord - 0.5) * 2.0;
+        if (d > 1.0) discard;
+
+        float core = pow(1.0 - d, 2.6);
+        float halo = pow(1.0 - d, 1.15) * 0.42;
+        float a = (core * 0.85 + halo) * vAlpha;
+        if (a < 0.002) discard;
+
+        gl_FragColor = vec4(vColor, a);
+      }
+    `;
+
+    /* ==========================================================================
+       6. 材质与 uniform 表
+       ========================================================================== */
+
+    const uniforms = {
+      uTime:         { value: 0 },
+      // 溶解相关直接引用 dissolveUniforms 里的同一个对象 → 网格与点云不可能不同步
+      uFront:        dissolveUniforms.uFront,
+      uEdge:         dissolveUniforms.uEdge,
+      uNoiseFreq:    dissolveUniforms.uNoiseFreq,
+      uRimColor:     dissolveUniforms.uRimColor,
+      uRimGain:      dissolveUniforms.uRimGain,
+
+      // —— 形态演变：两个坐标缓冲之间的插值进度 ——
+      uTransition:   { value: 0 },                        // 0 = 钢琴轮廓，1 = 抽象星云
+      uSurge:        { value: 0 },                        // 呼吸 / 流场 / 扭转的总闸门
+      uStagger:      { value: CONFIG.morph.stagger },     // 逐点延迟（散开是逐层荡开的）
+      uSpin:         { value: CONFIG.morph.spin },        // 星云自旋
+      uSpinDiff:     { value: CONFIG.morph.spinDiff },    // 差速旋转（内快外慢）
+      uCurl:         { value: CONFIG.morph.curl },        // 旋度场位移幅度
+      uCurlIdle:     { value: CONFIG.morph.curlIdle },    // 贴面时的残余流动
+      uTwinkle:      { value: CONFIG.morph.twinkle },     // 闪烁强度
+      uNebulaR:      { value: CONFIG.morph.radius },      // 星云半径：中心青、外圈紫的分区依据
+
+      // —— 呼吸波场（水面）——
+      uLift:         { value: CONFIG.wave.lift },         // 竖直起伏幅度
+      uAmp:          { value: CONFIG.wave.amp },          // 沿法线鼓起的幅度
+      uWaveK:        { value: new THREE.Vector3() },      // 主波方向 × (2π/波长)，载入后按长轴算
+      uWaveK2:       { value: new THREE.Vector3() },      // 第二层波：斜着穿过琴身
+      uWaveK3:       { value: new THREE.Vector3() },      // 第三层波：短波细纹
+      uWaveW:        { value: CONFIG.wave.speed },        // 主波角速度（后两层按固定倍率跑）
+      uWarp:         { value: CONFIG.wave.warp },         // 波脊被 Perlin 掰弯的程度
+      uTwist:        { value: CONFIG.wave.twist },        // 沿高度扭转（乘 surf）
+      uSizePulse:    { value: CONFIG.wave.sizePulse },    // 波峰处点尺寸放大
+
+      // —— 鼠标力场 ——
+      uMouse:        { value: new THREE.Vector3(0, 0, -9999) },
+      uMousePower:   { value: 0 },                        // 由鼠标速度驱动，停手后指数衰减
+      uMouseRadius:  { value: CONFIG.mouse.radius },
+      uMousePush:    { value: CONFIG.mouse.push },
+      uMouseSwirl:   { value: CONFIG.mouse.swirl },
+      uMouseSoft:    { value: CONFIG.mouse.softness },
+
+      // —— 全息菜单：悬停时注入的定向风场 ——
+      uFlowDir:      { value: new THREE.Vector3(0, 0, 0) },   // 每帧由 6.5 节平滑写入
+      uFlowPower:    { value: 0 },
+      uFlowAmp:      { value: CONFIG.hud.swing },
+      uFlowLift:     { value: CONFIG.hud.lift },
+      uFlowBand:     { value: CONFIG.hud.band },
+
+      uSize:         { value: CONFIG.cloud.size },
+      uSizeMax:      { value: CONFIG.cloud.sizeMax },
+      uPixelRatio:   { value: renderer.getPixelRatio() },
+      uProjScale:    { value: 512 },
+      uNoiseScale:   { value: CONFIG.morph.noiseScale },
+      uColor:        { value: new THREE.Color(CONFIG.cloud.color) },
+      uColorFar:     { value: new THREE.Color(CONFIG.cloud.colorFar) },
+      uColorStar:    { value: new THREE.Color(CONFIG.cloud.star) },
+      uBright:       { value: CONFIG.cloud.bright },
+      uAlpha:        { value: CONFIG.cloud.alpha },
+      uKeep:         { value: 1 },                        // 降级抽样阈值：1 = 全画
+    };
+
+    const particleMaterial = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: VERTEX_SHADER,
+      fragmentShader: FRAGMENT_SHADER,
+      transparent: true,
+      // 加法混合：颜色互不遮挡、层层叠加发光 —— 星尘 / 霓虹全靠它。
+      // 代价是"亮"必须靠 alpha 压出来（见片元着色器的 core/halo 曲线）：
+      // 把 NormalBlending 那套 alpha 直接搬过来会立刻烧成一片白。
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,                  // 粒子不写深度，避免互相遮挡出黑边
+      depthTest: true,
+      // curlNoise 一次 18 个 snoise，两层倍频就是 36 个 —— 移动端只跑一层
+      defines: { CURL_OCTAVES: IS_MOBILE ? 1 : 2 },
+    });
+
+    /* ==========================================================================
+       6.5 全息菜单：像素 HUD → 定向力场 + 加法混合碎尘
+       --------------------------------------------------------------------------
+       两条链路都由 DOM 事件驱动，但真正的运动全部落在每帧的指数插值上
+       （1 − e^(−k·dt)，与帧率无关，掉帧也不会跳）。CSS 只负责按钮自己的
+       描边与发光，绝不用 CSS 动画去带 3D —— 两者一旦脱钩就会"手已经移开、
+       画面还在吹"。
+
+       A. 定向力场
+          悬停左 / 右按钮 → hud.target = ∓1
+            → power 趋近 1、dir 朝该侧倾斜（带一点朝镜头和向下的分量）
+            → 顶点着色器在旋度场上叠一层带风带的位移（⑤.5）
+          移开 → 目标归零，power 与 dir 各自指数衰减：风"停"下来而不是"断"掉。
+
+       B. 碎尘拖尾
+          HUD 是 DOM、粒子是 WebGL，"同一个位置"只能靠相机反投影：
+            按钮矩形中心 → NDC → 沿视线放到相机前 distance 处
+          于是不管镜头怎么转、怎么缩放，碎尘永远紧贴按钮那一块屏幕往下洒。
+          池子固定大小、环形复用；悬停时按 rate 生成，寿命到了 aLife 归零，
+          顶点着色器里直接跳过（gl_PointSize = 0，不进光栅化）。
+          每帧 CPU 只写 position / aColor / aLife / aSize 四个 buffer，
+          几百个点的开销可以忽略；片元是方形硬边，和像素字体同一种颗粒。
+       ========================================================================== */
+
+    const HUD_CFG = CONFIG.hud;
+    const TRAIL_N = HUD_CFG.trail.count;
+
+    /* 悬停状态：target 是"意图"，power / dir 是每帧平滑后的"实际值" ——
+       着色器只读实际值，所以任何事件抖动都被插值吃掉了。 */
+    const hudState = {
+      target: 0,                       // -1 = ART WORKS（左）/ +1 = ABOUT ME（右）/ 0 = 无
+      power: 0,                        // 平滑后的风力 0..1
+      anchorEl: null,                  // 碎尘从哪个按钮洒出来
+      dir: new THREE.Vector3(),        // 平滑后的风向
+    };
+
+    const FLOW_ZERO = new THREE.Vector3();
+    const flowTarget = new THREE.Vector3();
+
+    /* —— 碎尘池 —— */
+    const trailPos  = new Float32Array(TRAIL_N * 3);
+    const trailCol  = new Float32Array(TRAIL_N * 3);
+    const trailVel  = new Float32Array(TRAIL_N * 3);
+    const trailLife = new Float32Array(TRAIL_N);     // 1 → 0，0 = 死亡
+    const trailMax  = new Float32Array(TRAIL_N);     // 该颗点的总寿命（秒）
+    const trailDim  = new Float32Array(TRAIL_N);     // 点径（CSS 像素）
+    let trailCursor = 0;
+    let trailAcc = 0;                                // 生成节流用的余数
+
+    const trailPosAttr  = new THREE.BufferAttribute(trailPos, 3).setUsage(THREE.DynamicDrawUsage);
+    const trailColAttr  = new THREE.BufferAttribute(trailCol, 3).setUsage(THREE.DynamicDrawUsage);
+    const trailLifeAttr = new THREE.BufferAttribute(trailLife, 1).setUsage(THREE.DynamicDrawUsage);
+    const trailDimAttr  = new THREE.BufferAttribute(trailDim, 1).setUsage(THREE.DynamicDrawUsage);
+
+    const trailGeo = new THREE.BufferGeometry();
+    trailGeo.setAttribute('position', trailPosAttr);
+    trailGeo.setAttribute('aColor', trailColAttr);
+    trailGeo.setAttribute('aLife', trailLifeAttr);
+    trailGeo.setAttribute('aSize', trailDimAttr);
+    trailGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 80);
+
+    /* 碎尘材质：加法混合的方形像素点。
+       刻意不做圆形衰减 —— 这层是"HUD 的数码尘"，方点才和点阵字体是一家人；
+       圆点会立刻把它变回一团普通的粒子特效。 */
+    const trailMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uPixelRatio: { value: renderer.getPixelRatio() },
+      },
+      vertexShader: /* glsl */ `
+        attribute vec3  aColor;
+        attribute float aLife;
+        attribute float aSize;
+
+        uniform float uPixelRatio;
+
+        varying vec3  vColor;
+        varying float vAlpha;
+
+        void main() {
+          vColor = aColor;
+
+          // 死亡的点不进光栅化：位置丢到裁剪空间外，尺寸归零
+          if (aLife <= 0.0) {
+            gl_PointSize = 0.0;
+            gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+            vAlpha = 0.0;
+            return;
+          }
+
+          // 出生最亮、之后一路淡 + 一路缩小（pow 让前段留得住，后段收得快）
+          float a = pow(aLife, 0.75);
+          vAlpha = a;
+          gl_PointSize = max(1.0, aSize * uPixelRatio * (0.45 + 0.75 * a));
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        varying vec3  vColor;
+        varying float vAlpha;
+
+        void main() {
+          if (vAlpha < 0.004) discard;
+          gl_FragColor = vec4(vColor, vAlpha);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      // 悬停特效永远盖在场景之上（DOM 本来就盖在 canvas 上，这里保持一致）
+      depthTest: false,
+    });
+
+    const trailSystem = new THREE.Points(trailGeo, trailMaterial);
+    trailSystem.frustumCulled = false;
+    trailSystem.renderOrder = 10;   // 最后一个画：加法混合不写深度，顺序只是保险
+    scene.add(trailSystem);
+
+    /* —— 碎尘的发射框架：每帧按需刷新，别在生成时反复 getBoundingClientRect ——
+       按钮是 fixed 定位，布局只在 resize / 字体加载完成时才会变，
+       所以矩形缓存起来，省掉每帧一次强制同步布局。 */
+    const trailFrame = {
+      pos: new THREE.Vector3(),
+      right: new THREE.Vector3(),
+      up: new THREE.Vector3(),
+      halfW: 0.1,
+      halfH: 0.05,
+      ready: false,
+    };
+
+    const hudRects = new Map();          // el → DOMRect（resize / 字体就绪时清空）
+
+    function hudRect(el) {
+      let r = hudRects.get(el);
+      if (!r) {
+        r = el.getBoundingClientRect();
+        hudRects.set(el, r);
+      }
+      return r;
+    }
+
+    /**
+     * 把按钮矩形换算成"相机前方 distance 处"的世界坐标与屏幕基向量
+     * @param {HTMLElement} el 悬停中的按钮
+     */
+    function updateTrailFrame(el) {
+      const r = hudRect(el);
+      const dist = HUD_CFG.trail.distance;
+
+      // 矩形中心 → NDC
+      const ndcX = ((r.left + r.width * 0.5) / window.innerWidth) * 2 - 1;
+      const ndcY = -((r.top + r.height * 0.5) / window.innerHeight) * 2 + 1;
+
+      camera.updateMatrixWorld();   // controls.update() 之后矩阵才是最新的
+
+      // NDC + 深度 0.5 反投影 → 射线 → 沿射线走到 dist 处
+      trailFrame.pos
+        .set(ndcX, ndcY, 0.5)
+        .unproject(camera)
+        .sub(camera.position)
+        .normalize()
+        .multiplyScalar(dist)
+        .add(camera.position);
+
+      // 相机的右 / 上轴：碎尘的散布与初速都以屏幕方向表达，转镜头才不会歪
+      trailFrame.right.setFromMatrixColumn(camera.matrixWorld, 0);
+      trailFrame.up.setFromMatrixColumn(camera.matrixWorld, 1);
+
+      // 该距离处 1 CSS 像素折合多少世界单位 —— 散布范围跟着按钮实际大小走
+      const worldPerPx =
+        (2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5)) / window.innerHeight;
+      trailFrame.halfW = r.width * 0.5 * worldPerPx;
+      trailFrame.halfH = r.height * 0.5 * worldPerPx;
+      trailFrame.ready = true;
+    }
+
+    /* 碎尘配色：青白为主，偶尔掉一颗紫的（和星云的青→紫同一个色系） */
+    const TRAIL_TINT = {
+      cyan:   new THREE.Color('#7ff4ff'),
+      white:  new THREE.Color('#ffffff'),
+      violet: new THREE.Color('#b98cff'),
+    };
+
+    const _spawnPos = new THREE.Vector3();
+    const _spawnVel = new THREE.Vector3();
+    const _spawnCol = new THREE.Color();
+
+    /**
+     * 从当前锚点洒出一颗碎尘（环形复用池子里的下一格）
+     * @param {number} side  -1 左 / +1 右：初速往同侧偏，跟着力场走
+     * @param {number} power 悬停强度：越满散得越快越开
+     */
+    function spawnTrailParticle(side, power) {
+      const i = trailCursor;
+      trailCursor = (trailCursor + 1) % TRAIL_N;
+      const i3 = i * 3;
+
+      // —— 位置：按钮矩形内随机（略放宽一点，出生点才不会排成一条边）——
+      _spawnPos
+        .copy(trailFrame.pos)
+        .addScaledVector(trailFrame.right, (Math.random() - 0.5) * 2.2 * trailFrame.halfW)
+        .addScaledVector(trailFrame.up, (Math.random() - 0.5) * 2.4 * trailFrame.halfH);
+
+      trailPos[i3]     = _spawnPos.x;
+      trailPos[i3 + 1] = _spawnPos.y;
+      trailPos[i3 + 2] = _spawnPos.z;
+
+      // —— 初速：往悬停侧飘 + 往屏幕下方落（"散落"而不是"喷泉"）——
+      const sp = HUD_CFG.trail.speed * (0.40 + 0.60 * power);
+      _spawnVel
+        .set(0, 0, 0)
+        .addScaledVector(trailFrame.right, side * sp * (0.30 + Math.random() * 0.70))
+        .addScaledVector(trailFrame.up, -sp * (0.35 + Math.random() * 0.95));
+
+      trailVel[i3]     = _spawnVel.x + (Math.random() - 0.5) * 0.10;
+      trailVel[i3 + 1] = _spawnVel.y + (Math.random() - 0.5) * 0.10;
+      trailVel[i3 + 2] = _spawnVel.z + (Math.random() - 0.5) * 0.10;
+
+      // —— 颜色 ——
+      if (Math.random() < 0.14) {
+        _spawnCol.copy(TRAIL_TINT.violet);
+      } else {
+        _spawnCol.copy(TRAIL_TINT.cyan).lerp(TRAIL_TINT.white, Math.random() * 0.85);
+      }
+      trailCol[i3]     = _spawnCol.r;
+      trailCol[i3 + 1] = _spawnCol.g;
+      trailCol[i3 + 2] = _spawnCol.b;
+
+      trailMax[i]  = HUD_CFG.trail.life * (0.60 + Math.random() * 0.80);
+      trailLife[i] = 1;
+      trailDim[i]  = HUD_CFG.trail.size * (0.65 + Math.random() * 0.85);
+    }
+
+    /**
+     * 一瞬间喷一小簇（悬停进入 / 点击时用：比等 rate 累积更"跟手"）
+     * @param {number} side -1 / +1
+     * @param {number} n 数量
+     */
+    function emitTrailBurst(side, n) {
+      if (!hudState.anchorEl) return;
+      updateTrailFrame(hudState.anchorEl);
+      for (let i = 0; i < n; i++) spawnTrailParticle(side, 1);
+    }
+
+    /**
+     * 每帧：按 rate 生成 → 积分 → 老化
+     * @param {number} dt 帧间隔（秒）
+     */
+    function updateTrail(dt) {
+      const power = hudState.power;
+
+      /* ① 生成：rate × 强度累积（帧率无关）。
+            松手后 power 指数衰减，碎尘还会"余"着洒一小会儿，不会一刀切断。 */
+      if (power > 0.03 && hudState.anchorEl) {
+        updateTrailFrame(hudState.anchorEl);
+
+        const side = hudState.target !== 0
+          ? hudState.target
+          : (hudState.dir.x >= 0 ? 1 : -1);   // 收尾时按残余风向继续飘
+
+        trailAcc += dt * HUD_CFG.trail.rate * power;
+        // 一帧最多补 8 颗：切回标签页时不会一口气喷出几百颗
+        let guard = 8;
+        while (trailAcc >= 1 && guard-- > 0) {
+          spawnTrailParticle(side, power);
+          trailAcc -= 1;
+        }
+        if (trailAcc > 6) trailAcc = 6;
+      } else {
+        trailAcc = 0;
+      }
+
+      /* ② 积分 + 老化：阻尼用 e^(−k·dt)，走的是"空气阻力"而不是线性减速 */
+      const damp = Math.exp(-1.7 * dt);
+      let dirty = false;
+
+      for (let i = 0; i < TRAIL_N; i++) {
+        if (trailLife[i] <= 0) continue;
+        dirty = true;
+
+        const dec = dt / trailMax[i];
+        trailLife[i] = trailLife[i] > dec ? trailLife[i] - dec : 0;
+        if (trailLife[i] <= 0) continue;
+
+        const i3 = i * 3;
+        trailVel[i3]     *= damp;
+        trailVel[i3 + 1]  = trailVel[i3 + 1] * damp - 0.30 * dt;   // 一点点重力
+        trailVel[i3 + 2] *= damp;
+
+        trailPos[i3]     += trailVel[i3] * dt;
+        trailPos[i3 + 1] += trailVel[i3 + 1] * dt;
+        trailPos[i3 + 2] += trailVel[i3 + 2] * dt;
+      }
+
+      if (dirty) {
+        trailPosAttr.needsUpdate = true;
+        trailColAttr.needsUpdate = true;
+        trailLifeAttr.needsUpdate = true;
+        trailDimAttr.needsUpdate = true;
+      }
+    }
+
+    /**
+     * 每帧把悬停意图平滑成实际风力 / 风向，再写进着色器
+     * @param {number} dt 帧间隔（秒）
+     */
+    function updateHudForce(dt) {
+      const on = hudState.target !== 0;
+
+      /* 指数趋近而不是线性 lerp：
+         k = 1 − e^(−rate·dt) 与帧率无关 —— 60fps 和 144fps 下的手感一致，
+         掉帧时也不会"补跳"。风力 6.5/s ≈ 0.15 秒到位，比 CSS 的 0.22s 稍快，
+         视觉上才是"力场先动、UI 后亮"。 */
+      hudState.power += ((on ? 1 : 0) - hudState.power) * (1 - Math.exp(-dt * HUD_CFG.lerp));
+
+      // 风向：偏向悬停侧，同时带一点朝镜头（+z）与向下（−y）的分量，
+      // 像一阵斜着扫过展台的风；松手时目标归零，风向自然衰减到 0。
+      if (on) flowTarget.set(hudState.target, -0.10, 0.22).normalize();
+      else flowTarget.copy(FLOW_ZERO);
+      hudState.dir.lerp(flowTarget, 1 - Math.exp(-dt * HUD_CFG.dirLerp));
+
+      uniforms.uFlowPower.value = hudState.power;
+      uniforms.uFlowDir.value.copy(hudState.dir);
+    }
+
+    /* —— 事件绑定：鼠标悬停 / 键盘聚焦 / 触屏点按，三套输入统一进 hudState —— */
+
+    /** 进入某个按钮的"力场区" */
+    function hudEnter(side, el) {
+      hudState.target = side;
+      hudState.anchorEl = el;
+    }
+
+    /** 离开：只清意图，anchorEl 留着 —— power 衰减期间碎尘还能从原位再洒几颗 */
+    function hudLeave() {
+      hudState.target = 0;
+    }
+
+    let hudTouchTimer = 0;
+
+    navButtons.forEach(({ el, side }) => {
+      // 鼠标：真正的 hover
+      el.addEventListener('pointerenter', (ev) => {
+        if (ev.pointerType !== 'mouse') return;
+        hudEnter(side, el);
+        emitTrailBurst(side, 14);          // 进入瞬间先喷一小簇，比等 rate 累积更跟手
+      });
+
+      el.addEventListener('pointerleave', (ev) => {
+        if (ev.pointerType !== 'mouse') return;
+        if (hudState.target === side) hudLeave();
+      });
+
+      /* 触屏 / 触控笔没有 hover：按一下 = 一次 1.2 秒的风。
+         不这样做的话，手机上这两个按钮就只剩视觉高光了。 */
+      el.addEventListener('pointerdown', (ev) => {
+        if (ev.pointerType === 'mouse') return;
+        hudEnter(side, el);
+        emitTrailBurst(side, 18);
+        clearTimeout(hudTouchTimer);
+        hudTouchTimer = setTimeout(() => {
+          if (hudState.target === side) hudLeave();
+        }, 1200);
+      });
+
+      // 键盘：Tab 到按钮上也算"悬停"，否则无障碍用户完全触发不到力场
+      el.addEventListener('focus', () => {
+        hudEnter(side, el);
+        emitTrailBurst(side, 10);
+      });
+
+      el.addEventListener('blur', () => {
+        if (hudState.target === side) hudLeave();
+      });
+
+      // 不做页面跳转：点击只补一簇碎尘（这一版专注 HUD 与力场的联动）
+      el.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        emitTrailBurst(side, 26);
+      });
+    });
+
+    // 按钮是绝对定位，只有窗口尺寸 / 字体加载 / 换语言会改变它的矩形 → 清缓存重测
+    window.addEventListener('resize', () => hudRects.clear());
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => hudRects.clear());
+    }
+
+    /* ==========================================================================
+       6.5.5 语言切换（EN / IT）
+       --------------------------------------------------------------------------
+       站内文字还很少，所以字典做得很小；但结构是数据驱动的：
+       要给新文案加翻译，只要
+         ① 给元素加 data-i18n="key"（要改无障碍标签就用 data-i18n-aria="key"）
+         ② 在 I18N.en / I18N.it 里补同一个 key
+       不用再碰任何逻辑。切语言时会顺手做三件事：
+         · <html lang> 跟着变 —— 读屏、断字、字体回退都用对语言
+         · 按钮宽度变了 → 碎尘锚点的矩形缓存必须清掉，
+           否则切完语言第一次悬停，粒子会从旧按钮的位置洒出来
+         · 选择记进 localStorage，下次打开还是同一种语言（无痕模式失败也不影响）
+       ========================================================================== */
+
+    const I18N = {
+      en: {
+        'nav.works':      'ART WORKS',
+        'nav.about':      'ABOUT ME',
+        'nav.worksLabel': 'Works',
+        'nav.aboutLabel': 'About me',
+      },
+      it: {
+        'nav.works':      'Opere',
+        'nav.about':      'Biografia',
+        'nav.worksLabel': 'Opere',
+        'nav.aboutLabel': 'Biografia',
+      },
+    };
+
+    const LANG_KEY = 'piano.lang';
+    const langButtons = Array.from(document.querySelectorAll('.lang-btn'));
+    let currentLang = 'en';
+
+    /**
+     * 应用一种语言：换文案、换 aria-label、换 <html lang>、同步开关状态
+     * @param {'en'|'it'} next
+     * @param {boolean} [silent] 初始化时为 true —— 不写回 localStorage
+     */
+    function applyLang(next, silent) {
+      const lang = I18N[next] ? next : 'en';
+      const dict = I18N[lang];
+      currentLang = lang;
+
+      document.querySelectorAll('[data-i18n]').forEach((el) => {
+        const text = dict[el.dataset.i18n];
+        if (text != null) el.textContent = text;
+      });
+
+      document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
+        const text = dict[el.dataset.i18nAria];
+        if (text != null) el.setAttribute('aria-label', text);
+      });
+
+      document.documentElement.lang = lang;
+
+      langButtons.forEach((btn) => {
+        const on = btn.dataset.lang === lang;
+        btn.classList.toggle('is-active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+
+      // 文案 → 宽度 → 锚点，缓存作废（见上面的说明）
+      hudRects.clear();
+
+      if (!silent) {
+        try {
+          localStorage.setItem(LANG_KEY, lang);
+        } catch (e) { /* 无痕模式 / file:// 下忽略即可 */ }
+      }
+
+      return lang;
+    }
+
+    langButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.lang === currentLang) return;
+        applyLang(btn.dataset.lang);
+        /* 切换时如果正好悬停在锚点上，锚点宽度刚变过、位置也刚被重测，
+           这一帧从新矩形洒一簇碎尘，读起来才像"跟着换了"，而不是文字一硬切。 */
+        if (hudState.anchorEl && hudState.power > 0.05) {
+          emitTrailBurst(hudState.target !== 0 ? hudState.target : 1, 10);
+        }
+      });
+    });
+
+    // 初始语言：记住上次选择，默认英文
+    let savedLang = null;
+    try {
+      savedLang = localStorage.getItem(LANG_KEY);
+    } catch (e) { savedLang = null; }
+    applyLang(savedLang || 'en', true);
+
+    /* ==========================================================================
+       7. 点云 = 模型自身的顶点（对齐 NewProject 的房屋点云）
+       --------------------------------------------------------------------------
+       上一版是"按三角面面积重采样 30 万点"：分布绝对均匀，整台琴就变成一片
+       粗细一致的沙，既没有细节密度差，也没有"扫描"的质感。
+       参考项目（app/house/house-model-stage.js）的做法是把几何体的 position
+       和 normal 直接拷出来当点云：
+         · 琴键、铸铁框架、琴腿这些布线密的地方自然更密，大平面上更疏
+         · 点和网格顶点一一对应 → 溶解时"实体消失处正是尘长出处"
+       本模型 13.8 万顶点 / 10.7 万三角面，密度够了（原采样 30 万点里其实
+       有一大半叠在同样的位置上，只是把点堆厚了，并没有变清楚）。
+       所以这一版分三步，归一化（第 ④ 步）之后才喂给着色器：
+         ① 顶点 + 法线原样捞出 —— 点云就是模型自己
+         ② 顶点稀疏的大三角面补点 —— 填掉琴盖、侧板这种"只有 4 个角"的空洞
+         ③ 按平均点间距做一次立方网格稀疏化 —— 抹平布线密度差，不留下过曝的白团
+       ========================================================================== */
+
+    /**
+     * 抽取所有网格的顶点与法线（世界坐标）
+     * @param {THREE.Object3D} root 已加载的 glTF 场景
+     * @returns {{ positions: Float32Array, normals: Float32Array, count: number }}
+     */
+    function extractMeshPoints(root) {
+      root.updateMatrixWorld(true);
+
+      const chunks = [];
+      const normalChunks = [];
+      let total = 0;
+
+      const v = new THREE.Vector3();
+      const nv = new THREE.Vector3();
+      const nm = new THREE.Matrix3();
+
+      root.traverse((obj) => {
+        if (!obj.isMesh || !obj.geometry) return;
+        const attr = obj.geometry.attributes.position;
+        if (!attr) return;
+
+        const n = attr.count;
+        const pos = new Float32Array(n * 3);
+        const nor = new Float32Array(n * 3);
+        const normalAttr = obj.geometry.attributes.normal;
+
+        // 法线要用法线矩阵变换；这个模型只有等比缩放，用 normalMatrix 就够
+        nm.getNormalMatrix(obj.matrixWorld);
+
+        for (let i = 0; i < n; i++) {
+          v.fromBufferAttribute(attr, i).applyMatrix4(obj.matrixWorld);
+          pos[i * 3] = v.x;
+          pos[i * 3 + 1] = v.y;
+          pos[i * 3 + 2] = v.z;
+
+          if (normalAttr) {
+            nv.fromBufferAttribute(normalAttr, i).applyMatrix3(nm).normalize();
+            nor[i * 3] = nv.x;
+            nor[i * 3 + 1] = nv.y;
+            nor[i * 3 + 2] = nv.z;
+          }
+        }
+
+        chunks.push(pos);
+        normalChunks.push(nor);
+        total += n;
+      });
+
+      if (total === 0) throw new Error('模型中没有可用的顶点数据');
+
+      const positions = new Float32Array(total * 3);
+      const normals = new Float32Array(total * 3);
+      let o = 0;
+      for (let i = 0; i < chunks.length; i++) {
+        positions.set(chunks[i], o);
+        normals.set(normalChunks[i], o);
+        o += chunks[i].length;
+      }
+
+      return { positions, normals, count: total };
+    }
+
+    /**
+     * 密度均化：一格只留一颗点
+     *
+     * 模型布线密度能差十几倍（琴弦、铁架密密麻麻，琴盖只有 4 个角），
+     * 直接渲染顶点就会得到"几处过曝的白团 + 大片空地"。
+     * 这里用边长 = 平均点间距的立方网格做一次稀疏化：同一个格子里只留第一颗点，
+     * 稠密处被摊薄、稀疏处原样保留，整体密度被拉到同一水平 ——
+     * 房屋那套点云"均匀细尘"的观感，本质上就是这么来的。
+     *
+     * @param {Float32Array} positions 点坐标（已归一化）
+     * @param {Float32Array} normals 法线，长度与 positions 一致
+     * @param {number} cell 网格边长（世界单位），取 sqrt(总面积 / 期望点数)；不能小于 targetSize/4000
+     * @returns {{ positions: Float32Array, normals: Float32Array, count: number }}
+     */
+    function thinPoints(positions, normals, cell) {
+      const total = positions.length / 3;
+      const outPos = new Float32Array(positions.length);
+      const outNor = new Float32Array(normals.length);
+      const seen = new Set();
+      const inv = 1 / Math.max(cell, 1e-5);
+      let n = 0;
+
+      for (let i = 0; i < total; i++) {
+        const x = positions[i * 3];
+        const y = positions[i * 3 + 1];
+        const z = positions[i * 3 + 2];
+
+        // 量化到整数格再偏成正数，拼成精确整数 key（不用哈希，绝不会误判碰撞）
+        const key = (Math.floor(x * inv) + 4096) * 16777216
+                  + (Math.floor(y * inv) + 4096) * 4096
+                  + (Math.floor(z * inv) + 4096);
+
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        // 格内抖动 ±0.4 格：模型布线是规整的行列，原样保留会在平面上排出
+        // 肉眼可见的格点阵列；抖一下就散成随机尘
+        const jitter = 0.8 * cell;
+        outPos[n * 3]     = x + (Math.random() - 0.5) * jitter;
+        outPos[n * 3 + 1] = y + (Math.random() - 0.5) * jitter;
+        outPos[n * 3 + 2] = z + (Math.random() - 0.5) * jitter;
+        outNor[n * 3]     = normals[i * 3];
+        outNor[n * 3 + 1] = normals[i * 3 + 1];
+        outNor[n * 3 + 2] = normals[i * 3 + 2];
+        n++;
+      }
+
+      return {
+        positions: outPos.subarray(0, n * 3),
+        normals: outNor.subarray(0, n * 3),
+        count: n,
+      };
+    }
+
+    /**
+     * 归一化：平移到原点、最长边缩放到 size，
+     * 并把最长水平边转到 X 轴（保证构图是横向展开的）
+     *
+     * @param {Float32Array} positions 就地修改
+     * @param {number} size 归一化后的最大边长
+     * @param {boolean} flipY 是否做 180° 绕 X 翻转（见 CONFIG.flipY 注释）
+     */
+    function normalizePoints(positions, size, flipY) {
+      const box = new THREE.Box3();
+      const v = new THREE.Vector3();
+      for (let i = 0; i < positions.length; i += 3) {
+        box.expandByPoint(v.set(positions[i], positions[i + 1], positions[i + 2]));
+      }
+
+      const center = box.getCenter(new THREE.Vector3());
+      const dim = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(dim.x, dim.y, dim.z) || 1;
+      const scale = size / maxDim;
+      const spinY = dim.z > dim.x ? Math.PI * 0.5 : 0;   // 长轴对齐 X
+      const cos = Math.cos(spinY);
+      const sin = Math.sin(spinY);
+
+      let yMin = Infinity;
+      let yMax = -Infinity;
+
+      for (let i = 0; i < positions.length; i += 3) {
+        let x = (positions[i]     - center.x) * scale;
+        let y = (positions[i + 1] - center.y) * scale;
+        let z = (positions[i + 2] - center.z) * scale;
+
+        // 180° 绕 X 轴：(x, y, z) → (x, -y, -z)
+        if (flipY) {
+          y = -y;
+          z = -z;
+        }
+
+        // 绕 Y 轴旋转，把长轴转到 X
+        positions[i]     = x * cos + z * sin;
+        positions[i + 1] = y;
+        positions[i + 2] = -x * sin + z * cos;
+
+        if (y < yMin) yMin = y;
+        if (y > yMax) yMax = y;
+      }
+
+      // center 也要交出去：实体网格要用同一份变换才能和点云严丝合缝
+      return { yMin, yMax, scale, spinY, center };
+    }
+
+    /**
+     * 给"顶点稀疏的大三角面"补点：只补空洞，不碰已经密的地方
+     *
+     * 这个钢琴模型的布线很不均匀：铁架、琴弦、琴腿这些曲面件密密麻麻，
+     * 而琴盖、侧板这种大平面只有几个顶点。只取顶点的话，点云会变成
+     * "几团亮斑 + 大片空洞"，轮廓立不住（房屋那个项目的网格是扫描来的、
+     * 密度天然均匀，所以那边直接取顶点就够）。
+     *
+     * 做法：先算全模型的平均顶点密度（顶点数 / 总面积），
+     * 再按"面积 × 平均密度 − 3"给每个三角面算配额，只给配额为正的面补点。
+     * 于是稠密区域一个点都不会加，纯平面的空洞被填平，密度差就被抹平了。
+     *
+     * @param {THREE.Object3D} root 已加载的 glTF 场景
+     * @param {Float32Array} positions 顶点坐标（与 root 同一坐标系）
+     * @returns {{ extra: Float32Array, normals: Float32Array, count: number, area: number } | null}
+     */
+    function fillSparseTriangles(root, positions) {
+      root.updateMatrixWorld(true);
+
+      const a = new THREE.Vector3();
+      const b = new THREE.Vector3();
+      const c = new THREE.Vector3();
+      const ab = new THREE.Vector3();
+      const ac = new THREE.Vector3();
+      const nv = new THREE.Vector3();
+
+      const tris = [];      // ax,ay,az, bx,by,bz, cx,cy,cz
+      const areas = [];
+      let totalArea = 0;
+
+      root.traverse((obj) => {
+        if (!obj.isMesh || !obj.geometry) return;
+        const attr = obj.geometry.attributes.position;
+        if (!attr) return;
+
+        const index = obj.geometry.index;
+        const triCount = index ? index.count / 3 : attr.count / 3;
+        const m = obj.matrixWorld;
+
+        for (let t = 0; t < triCount; t++) {
+          const i0 = index ? index.getX(t * 3)     : t * 3;
+          const i1 = index ? index.getX(t * 3 + 1) : t * 3 + 1;
+          const i2 = index ? index.getX(t * 3 + 2) : t * 3 + 2;
+
+          a.fromBufferAttribute(attr, i0).applyMatrix4(m);
+          b.fromBufferAttribute(attr, i1).applyMatrix4(m);
+          c.fromBufferAttribute(attr, i2).applyMatrix4(m);
+
+          ab.subVectors(b, a);
+          ac.subVectors(c, a);
+          const area = ab.cross(ac).length() * 0.5;
+          if (!(area > 1e-9)) continue;
+
+          tris.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+          areas.push(area);
+          totalArea += area;
+        }
+      });
+
+      const vertexCount = positions.length / 3;
+      if (!areas.length || totalArea <= 0) return null;
+
+      // 平均密度：平均每个顶点"应该"覆盖多少面积
+      const perArea = vertexCount / totalArea;
+      const CHUNK = 36;                      // 单个三角面的补点上限
+
+      // 先统计总配额，再按实际数量开数组：
+      // 三角面有十万个，直接按 CHUNK 上限开会白占近百 MB
+      const quotas = new Uint8Array(areas.length);
+      let totalExtra = 0;
+      for (let i = 0; i < areas.length; i++) {
+        const q = Math.min(CHUNK, Math.round(areas[i] * perArea * 0.9) - 3);
+        if (q > 0) {
+          quotas[i] = q;
+          totalExtra += q;
+        }
+      }
+      if (totalExtra === 0) return null;
+
+      const extra = new Float32Array(totalExtra * 3);
+      const normals = new Float32Array(totalExtra * 3);
+      let n = 0;
+
+      for (let i = 0; i < areas.length; i++) {
+        const quota = quotas[i];
+        if (quota === 0) continue;
+
+        const o = i * 9;
+        // 面法线就够用：需要补点的都是大平面，曲率可以忽略
+        ab.set(tris[o + 3] - tris[o], tris[o + 4] - tris[o + 1], tris[o + 5] - tris[o + 2]);
+        ac.set(tris[o + 6] - tris[o], tris[o + 7] - tris[o + 1], tris[o + 8] - tris[o + 2]);
+        nv.copy(ab).cross(ac).normalize();
+
+        for (let k = 0; k < quota; k++) {
+          // 三角形内的均匀分布（重心坐标的平方根变换）
+          const u1 = Math.sqrt(Math.random());
+          const u2 = Math.random();
+          const wa = 1 - u1;
+          const wb = u1 * (1 - u2);
+          const wc = u1 * u2;
+
+          extra[n * 3]     = tris[o]     * wa + tris[o + 3] * wb + tris[o + 6] * wc;
+          extra[n * 3 + 1] = tris[o + 1] * wa + tris[o + 4] * wb + tris[o + 7] * wc;
+          extra[n * 3 + 2] = tris[o + 2] * wa + tris[o + 5] * wb + tris[o + 8] * wc;
+          normals[n * 3]     = nv.x;
+          normals[n * 3 + 1] = nv.y;
+          normals[n * 3 + 2] = nv.z;
+          n++;
+        }
+      }
+
+      // area 是原始世界坐标下的总面积：归一化之后要乘 scale² 才是点云的尺度
+      return { extra: extra.subarray(0, n * 3), normals: normals.subarray(0, n * 3), count: n, area: totalArea };
+    }
+
+    /**
+     * 对一堆方向向量施加和 normalizePoints 相同的旋转（不含平移/缩放）
+     * 法线只需要旋转 → 归一化之后仍然和点云对齐
+     * @param {Float32Array} vec 就地修改的 xyz 数组
+     * @param {number} spinY 绕 Y 的偏航角
+     * @param {boolean} flipY 是否先做 180° 绕 X 翻转
+     */
+    function rotateVectors(vec, spinY, flipY) {
+      const cos = Math.cos(spinY);
+      const sin = Math.sin(spinY);
+
+      for (let i = 0; i < vec.length; i += 3) {
+        const x = vec[i];
+        let y = vec[i + 1];
+        let z = vec[i + 2];
+
+        // 180° 绕 X：(x, y, z) → (x, -y, -z)
+        if (flipY) {
+          y = -y;
+          z = -z;
+        }
+
+        vec[i]     = x * cos + z * sin;
+        vec[i + 1] = y;
+        vec[i + 2] = -x * sin + z * cos;
+      }
+    }
+
+    /* ==========================================================================
+       8. 抬起方向：每颗点预先烘好"往哪边被波抬起、抬多高"
+       律动段每帧要动七八万颗点，这件事绝不能放在 JS 里做（参考实现是每帧写
+       positions.array 再整份上传 buffer）。这里把方向烘成属性，位移在顶点着色器
+       里用一句 sin() 乘出来，CPU 侧全程零成本。
+
+       方向取"表面法线为主 + 两成随机"：波过处像整片琴面被气流掀起，
+       而不是所有点朝四面八方炸开——后者只会得到一团球，钢琴的轮廓全丢。
+       幅度带一点随机（0.75~1.25），尘才不会像一张塑料膜那样整体平移。
+       ========================================================================== */
+
+    /**
+     * @param {Float32Array} positions 已归一化的点云
+     * @param {Float32Array} normals 同一批点的法线（已做同样的旋转）
+     * @returns {Float32Array} 长度 count*3：单位方向 × 0.75~1.25
+     */
+    function buildScatterAttribute(positions, normals) {
+      const count = positions.length / 3;
+      const arr = new Float32Array(count * 3);
+
+      for (let i = 0; i < count; i++) {
+        const o = i * 3;
+
+        const jx = Math.random() * 2 - 1;
+        const jy = Math.random() * 2 - 1;
+        const jz = Math.random() * 2 - 1;
+
+        const dx = normals[o]     * 0.78 + jx * 0.3;
+        const dy = normals[o + 1] * 0.78 + jy * 0.3;
+        const dz = normals[o + 2] * 0.78 + jz * 0.3;
+
+        const len = Math.hypot(dx, dy, dz) || 1;
+        const mag = 0.75 + Math.random() * 0.5;
+
+        arr[o]     = (dx / len) * mag;
+        arr[o + 1] = (dy / len) * mag;
+        arr[o + 2] = (dz / len) * mag;
+      }
+
+      return arr;
+    }
+
+    /* ==========================================================================
+       9. 组装粒子对象
+       ========================================================================== */
+
+    let particleSystem = null;
+    let starField = null;
+
+    /* --------------------------------------------------------------------------
+       9.1 星云坐标（noisePosition）：在 CPU 上一次性烘好
+       --------------------------------------------------------------------------
+       为什么不在 GPU 现算：星云坐标是"目标形状"。如果每帧都由噪声现推，
+       形态就没有确定的终点，重组时永远收不干净。所以它必须是一个静态缓冲，
+       顶点着色器只负责在两份缓冲之间插值、再叠加流场。
+
+       形状按"一片斜躺的螺旋星云"来造：
+         · 幂律半径 → 中心略稠、外圈拉出稀疏的丝（均匀球只会得到一个毛球）
+         · 半径越大扭转越多（spiral）→ 天然带出三条旋臂
+         · X 拉长 / Y 压扁 → 和琴身共用同一条长轴，镜头里不会突然"变方"
+         · puff 抖动 → 打散旋臂的规整感，看起来才像尘埃而不是几何图形 */
+
+    /**
+     * @param {number} count 点数
+     * @returns {Float32Array} 长度 count*3
+     */
+    function buildNoisePositions(count) {
+      const cfg = CONFIG.morph;
+      const arr = new Float32Array(count * 3);
+
+      const TAU = Math.PI * 2;
+      // 三个近似高斯的随机数：加两次再减 1.5，比 (rand-0.5) 更聚在中间，
+      // 丝状结构因此"中间实、两边虚"，而不是一条等宽的硬带。
+      const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+
+      // 团簇中心：一部分点会被拉向这些点，形成星云里那几团"更亮的气"
+      const clumps = [];
+      for (let c = 0; c < 5; c++) {
+        const cr = cfg.radius * (0.25 + Math.random() * 0.6);
+        const ca = Math.random() * TAU;
+        clumps.push([Math.cos(ca) * cr * cfg.stretch, gauss() * cr * cfg.flatten * 0.5, Math.sin(ca) * cr * 0.9]);
+      }
+
+      for (let i = 0; i < count; i++) {
+        const o = i * 3;
+
+        /* 半径：幂律 → 中心稠、外圈稀（均匀分布只会得到一个毛球） */
+        const rn = Math.pow(Math.random(), 0.62);
+        const r = cfg.radius * (0.12 + 0.88 * rn);
+
+        /* 三臂：先归到某一条臂上，再给一个随半径变宽的角度抖动。
+           臂本身按 spiral 扭转（半径越大转得越多）→ 天然的螺旋形。 */
+        const arm = Math.floor(Math.random() * cfg.arms) / cfg.arms;
+        const phi = arm * TAU
+                  + cfg.spiral * rn
+                  + gauss() * (cfg.armWidth * (0.45 + 0.9 * rn));
+
+        /* 丝状的粗细：垂直方向随半径收敛，边缘才会薄成一张"盘" */
+        const taper = 1.0 - 0.55 * rn;
+        let x = Math.cos(phi) * r * cfg.stretch + (Math.random() - 0.5) * cfg.puff;
+        let y = gauss() * cfg.radius * cfg.flatten * taper * (0.35 + 0.65 * rn)
+              + Math.sin(phi * 2.0) * r * 0.07;
+        let z = Math.sin(phi) * r * 0.90 + (Math.random() - 0.5) * cfg.puff;
+
+        /* 团簇：32% 的点被拉向某个团簇中心 —— 这一步是"星云"和"均匀噪声"的分界 */
+        if (Math.random() < cfg.clump) {
+          const c = clumps[(Math.random() * clumps.length) | 0];
+          const w = 0.45 + Math.random() * 0.35;
+          x += (c[0] - x) * w; y += (c[1] - y) * w; z += (c[2] - z) * w;
+        }
+
+        arr[o] = x; arr[o + 1] = y; arr[o + 2] = z;
+      }
+
+      return arr;
+    }
+
+    /**
+     * 组装粒子对象：两组坐标缓冲 + 抬起方向 + 每点随机数
+     * @param {Float32Array} positions 钢琴坐标（targetPosition）
+     * @param {Float32Array} noisePositions 星云坐标（noisePosition）
+     * @param {Float32Array} scatter 抬起方向（第 8 节烘好）
+     * @returns {THREE.Points}
+     */
+    function buildParticleSystem(positions, noisePositions, scatter) {
+      const count = positions.length / 3;
+      const geo = new THREE.BufferGeometry();
+
+      // 缓冲 A = targetPosition：模型顶点。既是静止时的点云，也是重组后落回的目标
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      // 缓冲 B = noisePosition：无序星云（上面 9.1 烘出来的螺旋盘）
+      geo.setAttribute('aNoisePos', new THREE.BufferAttribute(noisePositions, 3));
+      // aScatter = 每颗点的抬起方向（沿表面法线，见第 8 节）
+      geo.setAttribute('aScatter', new THREE.BufferAttribute(scatter, 3));
+
+      // aRand：x 尺寸抖动 / y 降级抽样 / z 错开 + 闪烁相位 / w 色相偏移
+      const rand = new Float32Array(count * 4);
+      for (let i = 0; i < count * 4; i++) rand[i] = Math.random();
+      geo.setAttribute('aRand', new THREE.BufferAttribute(rand, 4));
+
+      // 手动给包围球，省掉 three 对十几万点的遍历
+      geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), CONFIG.targetSize);
+
+      const points = new THREE.Points(geo, particleMaterial);
+      points.frustumCulled = false;   // 星云会散到包围球外，关掉剔除
+      scene.add(points);
+
+      return points;
+    }
+
+    /**
+     * 远景星尘：一层很暗的静态星点，给画面纵深感
+     */
+    function buildStarField() {
+      const count = IS_MOBILE ? 1200 : 2600;
+      const pos = new Float32Array(count * 3);
+      const col = new Float32Array(count * 3);
+      const c = new THREE.Color();
+
+      for (let i = 0; i < count; i++) {
+        const r = 22 + Math.random() * 42;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+
+        pos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+        pos[i * 3 + 1] = r * Math.cos(phi) * 0.78;
+        pos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+
+        c.copy(Math.random() < 0.78 ? PALETTE.cyan : PALETTE.violet)
+          .lerp(PALETTE.white, Math.random() * 0.9);
+        col[i * 3]     = c.r;
+        col[i * 3 + 1] = c.g;
+        col[i * 3 + 2] = c.b;
+      }
+
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+
+      const m = new THREE.PointsMaterial({
+        size: 0.06,
+        sizeAttenuation: true,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.7,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        fog: false,
+      });
+
+      const stars = new THREE.Points(g, m);
+      stars.frustumCulled = false;
+      scene.add(stars);
+      return stars;
+    }
+
+    /* ==========================================================================
+       9.5 实体网格：静止 / 归位段的"真身"
+       --------------------------------------------------------------------------
+       尘再细也还是尘，「静止 → 解体」与「重组 → 归位」必须由真网格来落脚。
+
+       两个坑：
+         ① 变换必须和 normalizePoints 对点云做的完全一致
+            （平移 → 等比缩放 → 180° 绕 X 翻转 → 绕 Y 对齐长轴），
+            否则解体那一瞬间实体会和尘错开、像两张贴图叠不齐；
+         ② flipY 只能用"绕 X 旋转 180°"实现，不能用负缩放——
+            负缩放会把三角形绕序翻过来，正面被背面剔除，模型看起来是里外翻转的。
+       ========================================================================== */
+
+    let solidModel = null;
+    const solidMaterials = [];
+
+    /**
+     * 把 glTF 场景按点云的归一化变换摆好，连同三盏灯一起塞进场景
+     * @param {THREE.Object3D} root glTF 场景
+     * @param {THREE.Vector3} center 采样点的包围盒中心
+     * @param {number} scale 等比缩放
+     * @param {number} spinY 绕 Y 的偏航角（长轴对齐 X）
+     * @returns {THREE.Group}
+     */
+    function buildSolidModel(root, center, scale, spinY) {
+      const m = new THREE.Matrix4().makeRotationY(spinY);
+      if (CONFIG.flipY) m.multiply(new THREE.Matrix4().makeRotationX(Math.PI));
+      m.multiply(new THREE.Matrix4().makeScale(scale, scale, scale));
+      m.multiply(new THREE.Matrix4().makeTranslation(-center.x, -center.y, -center.z));
+
+      const wrapper = new THREE.Group();
+      wrapper.applyMatrix4(m);
+      wrapper.add(root);
+
+      root.traverse((obj) => {
+        if (!obj.isMesh) return;
+        const list = Array.isArray(obj.material) ? obj.material : [obj.material];
+        list.forEach((mat) => {
+          if (!mat || solidMaterials.indexOf(mat) >= 0) return;
+          mat.opacity = 1;
+          mat.transparent = false;
+          mat.depthWrite = true;
+
+          /* 材质修正：glTF 里 metallicFactor 缺省就是 1.0，而这个模型的两份材质
+             都没写这一项。金属度满格 + 粗糙度为 0 时，表面几乎只有镜面反射，
+             颜色全靠环境提供——所以下面的 scene.environment 是必需品，不是装饰。
+             这里把金属度压到黑漆该有的区间、粗糙度抬一点，让高光"摊开"成漆面反光。 */
+          if (typeof mat.metalness === 'number') {
+            mat.metalness = Math.min(mat.metalness, CONFIG.solid.metalness);
+          }
+          if (typeof mat.roughness === 'number') {
+            mat.roughness = Math.max(mat.roughness, CONFIG.solid.roughnessMin);
+          }
+          mat.envMapIntensity = CONFIG.solid.envIntensity;
+
+          // 条纹溶解：和点云共用同一个场（第 3.5 节），网格消失处正是尘长出处
+          attachDissolve(mat);
+        });
+      });
+
+      /* 三盏灯：环境光托底（暗面偏冷蓝）、主光塑形、背侧紫罗兰轮廓光。
+         亮度刻意压低——琴体一亮就直接越过后期辉光阈值，整台琴糊成一团光。
+         另外 scene.environment（见第 2 节的 buildStudioEnvironment）才是黑漆质感的关键：
+         它提供漆面该反射的那层柔光，灯只负责勾出体积。 */
+      const ambient = new THREE.HemisphereLight(0x9fc6ff, 0x04060f, CONFIG.solid.ambient);
+      const keyLight = new THREE.DirectionalLight(0xd8ecff, CONFIG.solid.key);
+      keyLight.position.set(5.5, 8.5, 6.5);
+      const rimLight = new THREE.DirectionalLight(0x9a5cff, CONFIG.solid.rim);
+      rimLight.position.set(-6.5, 1.5, -6.0);
+
+      scene.add(ambient, keyLight, rimLight);
+      scene.add(wrapper);
+
+      return wrapper;
+    }
+
+    /**
+     * 实体网格的显示开关
+     *
+     * 这里不再做"透明度交叉淡入淡出"。上一版是网格淡出、尘淡入同时进行，
+     * 同一块表面上会同时出现半透明的琴和刚长出来的点，两张脸叠不齐——
+     * 那正是过渡显得假的根源。现在网格永远不透明、永远走不透明队列，
+     * 消失只靠片元里的 discard（见 attachDissolve），物理上不可能重影。
+     * @param {boolean} visible
+     */
+    function setSolidVisible(visible) {
+      if (!solidModel) return;
+      if (solidModel.visible !== visible) solidModel.visible = visible;
+    }
+
+    /**
+     * 给实体材质挂上条纹溶解：和点云共用 stripeField（第 3.5 节）
+     *
+     * 注入位置：
+     *   顶点  <begin_vertex> 之后 → 把顶点换到世界坐标传下去
+     *   片元  <map_fragment> 之后 → 用世界坐标算条纹值，网格与点云的场完全一致，
+     *                              小于前沿的片元直接 discard
+     *   片元  <emissivemap_fragment> 之后 → 前沿加自发光（只靠漫反射点不亮）
+     *
+     * customProgramCacheKey 必须给：两份材质注入的是同一段代码，共用同一个程序；
+     * 不给的话 three 会各生成一份，uniform 绑定容易串到别的材质上。
+     */
+    function attachDissolve(mat) {
+      if (!mat || mat.userData.pianoDissolve) return;
+      mat.userData.pianoDissolve = true;
+
+      mat.onBeforeCompile = (shader) => {
+        shader.uniforms.uFront = dissolveUniforms.uFront;
+        shader.uniforms.uEdge = dissolveUniforms.uEdge;
+        shader.uniforms.uNoiseFreq = dissolveUniforms.uNoiseFreq;
+        shader.uniforms.uRimColor = dissolveUniforms.uRimColor;
+        shader.uniforms.uRimGain = dissolveUniforms.uRimGain;
+
+        shader.vertexShader = 'varying vec3 vDissWorld;\n' + shader.vertexShader;
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <begin_vertex>',
+          '#include <begin_vertex>\n  vDissWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;'
+        );
+
+        shader.fragmentShader = [
+          'varying vec3 vDissWorld;',
+          'uniform float uFront;',
+          'uniform float uEdge;',
+          'uniform float uNoiseFreq;',
+          'uniform vec3 uRimColor;',
+          'uniform float uRimGain;',
+          'float dissEdge = 0.0;',
+          GLSL_STRIPE,
+          shader.fragmentShader,
+        ].join('\n');
+
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <map_fragment>',
+          [
+            '#include <map_fragment>',
+            'float dn = stripeField(vDissWorld, uNoiseFreq);',
+            'if (dn < uFront) discard;',
+            'dissEdge = (1.0 - clamp((dn - uFront) / max(uEdge, 0.0001), 0.0, 1.0)) * step(0.0005, uFront);',
+            'diffuseColor.rgb = mix(diffuseColor.rgb, uRimColor, dissEdge * 0.55);',
+          ].join('\n')
+        );
+
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <emissivemap_fragment>',
+          [
+            '#include <emissivemap_fragment>',
+            'totalEmissiveRadiance += uRimColor * dissEdge * uRimGain;',
+          ].join('\n')
+        );
+      };
+
+      mat.customProgramCacheKey = () => 'piano-dissolve-v1';
+      mat.needsUpdate = true;
+    }
+
+    /* ==========================================================================
+       10. 时间轴：静止 → 解体 → 律动 → 重组 → 归位（无限循环）
+       --------------------------------------------------------------------------
+       全段只有两个数值在动，而且它们互补：
+         front     溶解前沿（0 = 完整实体，1.06 = 全部化尘）
+                   —— 网格按它 discard，点云按它 cull，同一个数、同一条边界
+         abstract  律动强度（0 = 尘贴着琴面，1 = 被行波抬到最高）
+                   —— 位移、点尺寸脉动、流场强度全都乘在它上面，
+                      所以这三件事永远同步开始、同步结束，段与段之间也不会跳变
+
+       节奏：静止 2s → 解体 4s → 律动 6s → 重组 4s → 归位 2s（共 18s）
+       ========================================================================== */
+
+    const clock = new THREE.Clock();
+
+    const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+    // 中段加速、首尾收慢；和参考实现里的 easeInOut 是同一条曲线
+    const easeInOut = (x) => (x < 0.5 ? 2 * x * x : -1 + (4 - 2 * x) * x);
+    // 三次 hermite：进出都比 easeInOut 更软，用在形态与呼吸上
+    const smooth01 = (x) => { const t = clamp01(x); return t * t * (3 - 2 * t); };
+
+    /* ==========================================================================
+       10. 状态机：一张表描述五个相位，每帧只从表里取样
+       --------------------------------------------------------------------------
+       相位表里只有时长，"形态长什么样"全在 sampleTimeline() 的包络里。
+       三条包络在任何交界处都连续 —— 这是段与段之间看不到跳变的原因。
+
+         front   溶解前沿：0 = 完整实体，1.06 = 全部化尘
+                 （网格按它 discard，点云按它 cull：同一个数、同一条边界）
+         morph   形态插值：0 = 贴着琴面，1 = 完全散成旋度星云
+         surge   "活着"的程度：呼吸波 / 旋度流 / 扭转 / 整团浮沉全乘在它上面
+                 （= 0 时尘严格贴回琴面，溶解接缝一像素都不会错位）
+
+       节奏：静止 2.2s → 解体 3.8s → 流变 5.6s → 重组 3.8s → 归位 2.2s
+       ========================================================================== */
+
+    const PHASES = [
+      { key: 'static',   label: '静止', duration: CONFIG.cycle.wait },
+      { key: 'dissolve', label: '解体', duration: CONFIG.cycle.dissolve },
+      { key: 'morph',    label: '流变', duration: CONFIG.cycle.morph },
+      { key: 'reform',   label: '重组', duration: CONFIG.cycle.reform },
+      { key: 'settle',   label: '归位', duration: CONFIG.cycle.settle },
+    ];
+
+    const CYCLE = PHASES.reduce((sum, p) => sum + p.duration, 0);
+
+    /**
+     * 取当前时刻的形态参数
+     * @param {number} time 秒
+     * @returns {{ key: string, label: string, front: number, morph: number, surge: number }}
+     */
+    function sampleTimeline(time) {
+      const FRONT_MAX = CONFIG.dissolve.frontMax;
+
+      // ① 定位相位（表驱动：改 CONFIG.cycle 里任何一个时长都不用动下面的逻辑）
+      let t = time % CYCLE;
+      let phase = PHASES[PHASES.length - 1];
+      for (let i = 0; i < PHASES.length; i++) {
+        if (t < PHASES[i].duration) { phase = PHASES[i]; break; }
+        t -= PHASES[i].duration;
+      }
+      const u = clamp01(t / Math.max(phase.duration, 1e-6));
+
+      // ② 各相位的包络
+      switch (phase.key) {
+        /* 解体：尘一格一格在琴面上长出来，同时"活"过来开始呼吸。
+           此刻 morph 仍是 0 —— 先原地化尘、再散开；顺序反了就会看到
+           "粒子从空气里飞过来拼成一台琴"，那是最假的一步。 */
+        case 'dissolve':
+          return {
+            key: phase.key, label: phase.label,
+            front: FRONT_MAX * easeInOut(u),
+            morph: 0,
+            surge: smooth01(u),
+          };
+
+        /* 流变：前 45% 把 morph 推到 1（钢琴化开成星云），之后维持并轻轻呼吸。
+           surge 随 morph 缓慢回落 —— 星云态不需要整团上下平动，
+           那里的动感交给旋度场与差速自旋，留一点呼吸感就够。 */
+        case 'morph': {
+          const rise = smooth01(u / 0.45);
+          const breathe = Math.sin(clamp01((u - 0.45) / 0.55) * Math.PI * 2.0) * 0.05;
+          const morph = clamp01(rise + breathe);
+          return {
+            key: phase.key, label: phase.label,
+            front: FRONT_MAX,
+            morph,
+            surge: 1 - 0.55 * morph,
+          };
+        }
+
+        /* 重组：前 52% 让星云沿原路重新凝聚（morph → 0），
+           后 48% 前沿从 1.06 退回 0，条纹把实体一格一格焊回去。
+           两段严格衔接：尘全部落位之后实体才开始长，中途绝不会出现
+           "半透明的琴"和"还在飞的尘"压在同一块表面上的重影。 */
+        case 'reform': {
+          const a = clamp01(u / 0.52);
+          const back = u <= 0.52 ? 1 : 1 - easeInOut(clamp01((u - 0.52) / 0.48));
+          const morph = 1 - smooth01(a);
+          const alive = 1 - smooth01(clamp01(u / 0.45));
+          return {
+            key: phase.key, label: phase.label,
+            front: FRONT_MAX * back,
+            morph,
+            surge: alive * (1 - 0.55 * morph),
+          };
+        }
+
+        /* 静止 / 归位：完整实体，尘全关 */
+        default:
+          return { key: phase.key, label: phase.label, front: 0, morph: 0, surge: 0 };
+      }
+    }
+
+    /* ==========================================================================
+       11. 相机：用户操作时停止自转，闲置 9 秒后自动恢复
+       ========================================================================== */
+
+    let lastInteraction = 0;      // 上次用户操作时刻（用于恢复自转）
+
+    controls.addEventListener('start', () => {
+      controls.autoRotate = false;
+      lastInteraction = clock.getElapsedTime();
+    });
+
+    /**
+     * 每帧检查：停手一段时间后把自动旋转接回来
+     * @param {number} elapsed 秒
+     */
+    function updateCameraIdle(elapsed) {
+      if (!controls.autoRotate && elapsed - lastInteraction > 9) controls.autoRotate = true;
+    }
+
+    /* ==========================================================================
+       12. 后期处理链
+       RenderPass → UnrealBloomPass（泛光）→ Grade（暗角/颗粒）→ OutputPass
+       --------------------------------------------------------------------------
+       注意：EffectComposer 渲染到 RenderTarget 时 three 不会做 tone mapping
+       与 sRGB 编码，这两件事统一交给最后的 OutputPass 完成，不会重复曝光。
+       ========================================================================== */
+
+    const composer = new EffectComposer(renderer);
+
+    // 场景本身无需额外光照（粒子是自发光的 ShaderMaterial）
+    composer.addPass(new RenderPass(scene, camera));
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      CONFIG.bloom.strength,
+      CONFIG.bloom.radius,
+      CONFIG.bloom.threshold
+    );
+    composer.addPass(bloomPass);
+
+    // 自制调色：轻微暗角 + 胶片颗粒，压掉"完美渲染"的塑料感
+    const GradeShader = {
+      uniforms: {
+        tDiffuse: { value: null },
+        uTime:    { value: 0 },
+        uGrain:   { value: 0.03 },
+      },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        uniform sampler2D tDiffuse;
+        uniform float uTime;
+        uniform float uGrain;
+        varying vec2 vUv;
+
+        float hash(vec2 p) {
+          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+        }
+
+        void main() {
+          vec4 texel = texture2D(tDiffuse, vUv);
+          vec3 col = texel.rgb;
+
+          // 极轻的暗角（CSS 那层是屏幕空间，这里在线性空间再压一次边缘）
+          float d = length(vUv - 0.5);
+          col *= 1.0 - smoothstep(0.34, 0.96, d) * 0.26;
+
+          // 颗粒：按局部亮度调制。
+          // 注意这里是线性空间，一个固定的 ±0.03 偏移经 sRGB 编码后相当于 ±48 级，
+          // 会把纯黑背景整体点亮；所以让振幅跟着亮度走，暗部保持纯净。
+          float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+          float g = hash(vUv * vec2(1920.0, 1080.0) + fract(uTime * 0.7) * 137.0) - 0.5;
+          col += g * uGrain * clamp(lum * 3.0, 0.0, 1.0) * (0.4 + 0.6 * (1.0 - d));
+
+          gl_FragColor = vec4(col, texel.a);
+        }
+      `,
+    };
+
+    const gradePass = new ShaderPass(GradeShader);
+    composer.addPass(gradePass);
+
+    // ACES tone mapping + sRGB 编码，必须是最后一道
+    composer.addPass(new OutputPass());
+
+    /* ==========================================================================
+       13. 响应式
+       ========================================================================== */
+
+    function onResize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+
+      /* 移轴构图：offsetY 取正值 → 取景窗整体下移、画面内容整体上移 liftPx 像素。
+         fullWidth / fullHeight 传的就是 w / h（和取景窗一样大），所以垂直视角不变，
+         只是纯平移 —— 画面既不缩放也不变形。窗口尺寸一变这里必须重设，
+         否则 aspect 会被 setViewOffset 内部按旧的 fullWidth/fullHeight 覆盖掉。 */
+      camera.setViewOffset(w, h, 0, CONFIG.frame.liftPx, w, h);
+
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.75 : 2));
+      renderer.setSize(w, h);
+
+      // EffectComposer.setSize 会按 pixelRatio 换算并同步给每个 pass
+      if (composer.setPixelRatio) composer.setPixelRatio(renderer.getPixelRatio());
+      composer.setSize(w, h);
+
+      uniforms.uPixelRatio.value = renderer.getPixelRatio();
+      // 碎尘的点径是按 CSS 像素写的，同样要跟着 dpr 走（否则 Retina 上会细成一根线）
+      trailMaterial.uniforms.uPixelRatio.value = renderer.getPixelRatio();
+      // 透视投影下，点尺寸（设备像素）= 世界尺寸 * (画布高度/2) / tan(fov/2) / 距离
+      const halfFovTan = Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5);
+      uniforms.uProjScale.value = renderer.getPixelRatio() * (h * 0.5) / halfFovTan;
+    }
+
+    window.addEventListener('resize', onResize);
+    // 首帧前先算一次，否则 uProjScale 用的是默认值
+    onResize();
+
+    // 移动端地址栏收缩会触发 resize，这里防抖一下
+    let resizeTimer = 0;
+    window.addEventListener('orientationchange', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(onResize, 220);
+    });
+
+    /* ==========================================================================
+       14. 主循环 + 自适应画质
+       ========================================================================== */
+
+    const stats = { frames: 0, acc: 0, quality: 1 };
+
+    /**
+     * 帧率低于 45 时按比例降低绘制的点数
+     *
+     * 用顶点着色器里的 uKeep 做均匀抽样（aRand.y > uKeep 的点不画）：
+     * 不重建 buffer，也不会像 setDrawRange 那样按缓冲顺序把整块网格切掉。
+     * 帧率恢复后再慢慢补回来，兼容核显 / 移动端。
+     * @param {number} fps 最近半秒的平均帧率
+     */
+    function adaptQuality(fps) {
+      if (!particleSystem) return;
+      let ratio = stats.quality;
+
+      if (fps < 45 && ratio > 0.45) ratio -= 0.12;
+      else if (fps > 57 && ratio < 1) ratio += 0.06;
+      else return;
+
+      stats.quality = Math.min(1, Math.max(0.4, ratio));
+
+      uniforms.uKeep.value = stats.quality;
+
+      // 点少了 → 覆盖下降：把点略微放大补回面积（封顶 1.3 倍，别让点变糊）
+      uniforms.uSize.value = CONFIG.cloud.size * Math.min(1.3, 1 / Math.sqrt(stats.quality));
+
+      // 备注：辉光强度改由 animate() 每帧统一算（还要乘律动强度），这里不再写
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const dt = Math.min(clock.getDelta(), 0.05);   // 钳制，切标签页回来不会"瞬移"
+      const elapsed = clock.getElapsedTime();
+
+      /* —— 状态机取样 ——
+         每帧只取三个数：front（溶解）/ morph（形态）/ surge（活度）。
+         所有位移都乘在 morph 或 surge 上，所以相位交接处不会跳、不会闪。 */
+      /* 相位名不再显示在页面上（画面无文字），sampleTimeline() 仍返回 label / key，
+         排查时在控制台里看即可。 */
+      const state = sampleTimeline(elapsed);
+
+      const M = state.morph;
+
+      dissolveUniforms.uFront.value = state.front;
+      uniforms.uTransition.value = M;
+      uniforms.uSurge.value = state.surge;
+
+      /* 整团尘的浮沉与微摆：乘在对象矩阵上而不是点坐标 ——
+         不花 GPU，也保证 surge → 0 时严格回到原位，溶解接缝不会错开。
+         两个频率取无理比（0.72 / 0.31），浮沉就不会周期性地"咔"回同一个姿态。 */
+      if (particleSystem) {
+        const bob = Math.sin(elapsed * 0.72) * 0.78 + Math.sin(elapsed * 0.31 + 1.2) * 0.22;
+        particleSystem.position.y = bob * CONFIG.wave.bob * state.surge;
+        particleSystem.rotation.z = Math.sin(elapsed * 0.44 + 0.6) * 0.016 * M;
+        particleSystem.rotation.x = Math.sin(elapsed * 0.37 + 2.1) * 0.010 * M;
+      }
+
+      // 鼠标 → 世界坐标 → 点云局部坐标，同时让能量衰减（手一停，涟漪自己就平息）
+      updatePointerWorld(dt);
+
+      // 星云态辉光更足：加法混合的尘埃本来就吃 bloom，形态越散越要"发光"
+      // 悬停 HUD 时再补一点：碎尘是加法混合的小方点，需要 bloom 才咬得住
+      bloomPass.strength = CONFIG.bloom.strength * (0.9 + 0.1 * stats.quality) *
+        (1 + 1.05 * M + 0.12 * hudState.power);
+
+      // 全琴化尘之后网格每个片元都会被 discard，直接关掉省一遍顶点处理
+      setSolidVisible(state.front < CONFIG.dissolve.frontMax - 0.0005);
+
+      // —— 相机空闲自转 & 时间 ——
+      updateCameraIdle(elapsed);
+      uniforms.uTime.value = elapsed;
+      gradePass.uniforms.uTime.value = elapsed;
+
+      // 星尘以不同于相机的速度缓慢旋转，制造视差
+      if (starField) starField.rotation.y += dt * 0.008;
+
+      controls.update();
+
+      /* —— 全息菜单：悬停 → 定向风场 + 加法混合碎尘 ——
+         放在 controls.update() 之后：碎尘的锚点要用"这一帧"的相机矩阵反投影，
+         否则转镜头时拖尾会从按钮旁边偏出去一帧。 */
+      updateHudForce(dt);
+      updateTrail(dt);
+
+      composer.render();
+
+      // —— 帧率统计 ——
+      stats.frames++;
+      stats.acc += dt;
+      if (stats.acc >= 0.5) {
+        const fps = Math.round(stats.frames / stats.acc);
+        adaptQuality(fps);
+        stats.frames = 0;
+        stats.acc = 0;
+      }
+    }
+
+    /* ==========================================================================
+       15. 载入模型并启动
+       ========================================================================== */
+
+    function setProgress(p) {
+      elBar.style.transform = `scaleX(${clamp01(p)})`;
+    }
+
+    function fail(html) {
+      elErr.style.display = 'block';
+      elErr.innerHTML = html;
+    }
+
+    new GLTFLoader().load(
+      CONFIG.modelUrl,
+
+      // —— 成功 ——
+      (gltf) => {
+        try {
+          // ① 顶点 + 法线：点云就是模型自己（见第 7 节）
+          const raw = extractMeshPoints(gltf.scene);
+          // ② 顶点稀疏的大平面补点，把"几团亮斑 + 大片空洞"抹平
+          const filled = fillSparseTriangles(gltf.scene, raw.positions);
+          const fillCount = filled ? filled.count : 0;
+
+          // ③ 顶点与补点拼成一份数组
+          const positions = new Float32Array(raw.positions.length + fillCount * 3);
+          positions.set(raw.positions, 0);
+          if (fillCount) positions.set(filled.extra, raw.positions.length);
+
+          const normals = new Float32Array(raw.normals.length + fillCount * 3);
+          normals.set(raw.normals, 0);
+          if (fillCount) normals.set(filled.normals, raw.normals.length);
+
+          // ④ 归一化到以原点为中心、最大边 = CONFIG.targetSize（法线跟着做同样的旋转）
+          const { yMin, yMax, center, scale, spinY } = normalizePoints(
+            positions, CONFIG.targetSize, CONFIG.flipY
+          );
+          rotateVectors(normals, spinY, CONFIG.flipY);
+
+          // ⑤ 密度均化：网格边长 = 平均点间距 = sqrt(总面积 / 期望点数)
+          //    归一化后面积要乘 scale²；格子数上限 4096³ 是 thinPoints 的 key 决定的
+          const areaNorm = (filled ? filled.area : 0) * scale * scale;
+          const target = Math.max(1, Math.round(raw.count * CONFIG.cloud.density));
+          const minCell = CONFIG.targetSize / 4000;
+          let cell = areaNorm > 0 ? Math.sqrt(areaNorm / target) : CONFIG.targetSize * 0.0009;
+          let thin = thinPoints(positions, normals, Math.max(cell, minCell));
+
+          // 琴弦、铁架这类"细丝"几何占的格数远小于它的表面积，按面积算出来的间距会偏大，
+          // 第一遍点数明显不够。点数与格面积近似成反比，用实际结果修正一两次就收敛。
+          for (let pass = 0; pass < 2; pass++) {
+            const ratio = thin.count / target;
+            if (ratio > 0.85 && ratio < 1.2) break;
+            cell = Math.max(minCell, cell * Math.sqrt(ratio));
+            thin = thinPoints(positions, normals, cell);
+          }
+          const count = thin.count;
+          // ⑥ 抬起方向 + 点对象
+          particleSystem = buildParticleSystem(
+            thin.positions,
+            buildNoisePositions(count),
+            buildScatterAttribute(thin.positions, thin.normals)
+          );
+          // ⑦ 实体网格：和点云共用同一份归一化变换，溶解的接缝才对得上
+          if (CONFIG.solid.enabled) solidModel = buildSolidModel(gltf.scene, center, scale, spinY);
+          starField = buildStarField();
+
+          // ⑧ 条纹频率：让琴身高度上正好落在 CONFIG.dissolve.bands 道
+          const height = Math.max(0.5, yMax - yMin);
+          dissolveUniforms.uNoiseFreq.value = (CONFIG.dissolve.bands * Math.PI * 2) / height;
+
+          // ⑨ 波场方向：主波沿长轴（X）扫过琴身，另外两层斜着穿过去 ——
+          //    三个方向不共面，波峰就永远连不成一条直线
+          const waveK = (Math.PI * 2) / CONFIG.wave.length;
+          uniforms.uWaveK.value.set(waveK, waveK * 0.35, 0);
+          uniforms.uWaveK2.value.set(-waveK * 0.62, waveK * 0.18, waveK * 0.78);
+          uniforms.uWaveK3.value.set(waveK * 0.45, -waveK * 0.22, -waveK * 0.90);
+
+          console.log(
+            '[piano] 顶点 ' + raw.count + ' + 补点 ' + fillCount + ' → 均化 ' + count +
+            ' (间距 ' + cell.toFixed(4) + ') / 条纹 ' + CONFIG.dissolve.bands + ' 道 / 频率 ' +
+            dissolveUniforms.uNoiseFreq.value.toFixed(1)
+          );
+
+          setProgress(1);
+          elLoader.classList.add('done');
+
+          const box = new THREE.Box3().setFromBufferAttribute(
+            particleSystem.geometry.attributes.position
+          );
+          console.log('[piano] 归一化包围盒', box.min.toArray(), box.max.toArray());
+
+          clock.start();
+          animate();
+        } catch (err) {
+          console.error(err);
+          fail('粒子化失败：' + (err && err.message ? err.message : err));
+        }
+      },
+
+      // —— 进度 ——
+      (evt) => {
+        if (evt.total) setProgress((evt.loaded / evt.total) * 0.98);
+        else setProgress(0.35);
+      },
+
+      // —— 失败 ——
+      (err) => {
+        console.error(err);
+        fail(
+          '模型载入失败：' + (err && err.message ? err.message : '未知错误') +
+          '<br><br>请确认文件存在：<code>asset/model/grand-piano.glb</code>' +
+          '<br>并通过本地服务器访问（例如 <code>python -m http.server</code>），' +
+          '直接用 file:// 打开会被浏览器的跨域策略拦下。'
+        );
+      }
+    );
+  </script>
 </body>
 </html>
