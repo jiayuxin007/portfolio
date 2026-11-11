@@ -40,19 +40,17 @@ npx vercel@latest deploy --prod --yes --archive=tgz --scope jiayuxin
 
 ### 免费地址（`*.vercel.app`）
 
-项目 `jiayuxin` 目前挂着几个免费别名，都可用（实测 200）：
+主地址（已实测 200，HTTP 308 强制跳 https）：
 
-| 地址 | 说明 |
-| --- | --- |
-| <https://jiayuxin.vercel.app> | 主地址 |
-| <https://jiayuxin-piano.vercel.app> | 备用 |
-| <https://yuxin-jia.vercel.app> | 备用 |
+**<https://jiayuxin.vercel.app>**
+
+另一个还活着的旧地址（早期部署留下的，可当备用）：`https://portfolio-theta-steel-78.vercel.app`
 
 规则（都是 0 元）：
 
 - 名字**只要没被别人占用**就能挂，一个项目可以同时挂多个；改名或加别名 1 分钟左右生效。
 - 只能改 `.vercel.app` 前面那一段，后缀改不了，也不能加路径。
-- 改法：Vercel 项目 → Settings → Domains；或命令行 `npx vercel@latest domains add jiayuxin-piano.vercel.app`。
+- 改法：Vercel 项目 → Settings → Domains；或命令行 `npx vercel@latest domains add 想用的名字.vercel.app`。
 - 已被别人占用、挂不上的例子：`yuxin`、`yuxin-portfolio`、`grand-piano`。
 
 ### 自定义域名
