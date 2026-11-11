@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Art Works · 能量脊柱</title>
+
+<!-- 和首页同一套像素字体 / 同一个图标：从首页点进来时 HUD 语言不能断 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2212%22 fill=%22none%22 stroke=%22%2300ffff%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%223%22 fill=%22%2300ffff%22/%3E%3C/svg%3E">
+
+<style>
+  /* ============================================================
+     基础排版
+     ------------------------------------------------------------
+     这一页只有画面 + 三个 HUD 元素（返回、作品编号、语言开关），
+     其余全部留黑：脊柱本身就是唯一的主体。
+     ============================================================ */
+  :root {
+    --cyan: #00ffff;
+    --violet: #b06bff;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  html { background: #02030a; }
+
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #02030a;
+    cursor: crosshair;
+    /* 手机上整页拖拽会触发下拉刷新 / 回弹，和"鼠标即骨力"的交互打架 */
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  #stage {
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* 暗角：把四周压下去，让中间的脊柱"烧"在黑里 */
+  .vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 92% at 50% 50%,
+        rgba(0, 0, 0, 0) 32%,
+        rgba(4, 7, 20, 0.44) 72%,
+        rgba(7, 11, 30, 0.88) 100%);
+  }
+
+  /* ============================================================
+     HUD（和首页 .hud-nav / .nav-btn 完全同源，只换了定位变量）
+     ============================================================ */
+  .hud {
+    position: absolute;
+    top: clamp(18px, 4.2vh, 46px);
+    z-index: 6;
+    /* 只有按钮自己吃指针事件：包裹层不能挡住整页的 pointermove */
+    pointer-events: none;
+  }
+
+  .hud--left  { left:  clamp(18px, 4.6vw, 64px); }
+  .hud--right { right: clamp(18px, 4.6vw, 64px); }
+
+  .nav-btn {
+    position: relative;
+    display: inline-block;
+    pointer-events: auto;
+
+    margin: 0;
+    padding: 13px 17px 12px;
+    appearance: none;
+    -webkit-appearance: none;
+
+    font-family: 'Press Start 2P', 'Zpix', 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    color: #eafcff;
+    white-space: nowrap;
+    text-decoration: none;
+
+    background-color: rgba(3, 16, 26, 0.28);
+    border: 1px solid rgba(0, 255, 255, 0.42);
+    border-radius: 0;
+    box-shadow:
+      0 0 0 1px rgba(0, 255, 255, 0.05),
+      0 0 14px rgba(0, 255, 255, 0.10),
+      inset 0 0 12px rgba(0, 255, 255, 0.05);
+    -webkit-backdrop-filter: blur(7px) saturate(150%);
+    backdrop-filter: blur(7px) saturate(150%);
+
+    /* 像素字：关掉一切平滑，让每个点阵方块都是硬的 */
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+    font-smooth: never;
+    text-rendering: geometricPrecision;
+
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      color 0.22s ease,
+      background-color 0.22s ease,
+      border-color 0.22s ease,
+      box-shadow 0.22s ease,
+      transform 0.22s ease;
+  }
+
+
+  /* 取景框：左上 / 右下两个直角，比一圈描边更像 HUD */
+  .nav-btn::before,
+  .nav-btn::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border: 1px solid rgba(0, 255, 255, 0.80);
+    transition: width 0.22s ease, height 0.22s ease, border-color 0.22s ease;
+  }
+
+  .nav-btn::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+  .nav-btn::after  { right: -1px; bottom: -1px; border-left: 0; border-top: 0; }
+
+  .nav-btn:hover,
+  .nav-btn:focus-visible {
+    outline: none;
+    color: #ffffff;
+    background-color: rgba(0, 46, 62, 0.44);
+    border-color: rgba(0, 255, 255, 0.95);
+    box-shadow:
+      0 0 0 1px rgba(0, 255, 255, 0.16),
+      0 0 26px rgba(0, 255, 255, 0.30),
+      inset 0 0 20px rgba(0, 255, 255, 0.12);
+    text-shadow:
+      0 0 9px rgba(0, 255, 255, 0.72),
+      1px 1px 0 rgba(0, 26, 36, 0.70);
+    transform: translateY(-1px);
+  }
+
+  .nav-btn:hover::before,
+  .nav-btn:hover::after,
+  .nav-btn:focus-visible::before,
+  .nav-btn:focus-visible::after {
+    width: 12px;
+    height: 12px;
+    border-color: #ffffff;
+  }
+
+  /* 右上角作品编号：不可点，所以描边压到很弱 + 虚线，视觉上明确"这是标签不是按钮" */
+  .tag {
+    display: inline-block;
+    padding: 13px 15px 12px;
+    font-family: 'Press Start 2P', 'Zpix', 'Courier New', monospace;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    color: rgba(150, 232, 255, 0.58);
+    white-space: nowrap;
+    background-color: rgba(3, 16, 26, 0.18);
+    border: 1px dashed rgba(0, 255, 255, 0.22);
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+    font-smooth: never;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* 标签末尾的方块光标：让它看起来是"正在读取的仪器读数" */
+  .tag i {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-left: 8px;
+    background: rgba(0, 255, 255, 0.85);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.75);
+    animation: blink 1.15s steps(1) infinite;
+  }
+
+  @keyframes blink {
+    0%, 55%   { opacity: 1; }
+    56%, 100% { opacity: 0; }
+  }
+
+  /* 左下角操作提示：一直很淡，不抢画面 */
+  .hint {
+    position: absolute;
+    left: clamp(18px, 4.6vw, 64px);
+    bottom: clamp(18px, 4.2vh, 46px);
+    z-index: 6;
+    margin: 0;
+    pointer-events: none;
+
+    font-family: 'Press Start 2P', 'Zpix', 'Courier New', monospace;
+    font-size: 9px;
+    line-height: 1.9;
+    letter-spacing: 0.14em;
+    color: rgba(150, 232, 255, 0.42);
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+    font-smooth: never;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ============================================================
+     语言切换（右下角分段开关，样式与首页一致）
+     ============================================================ */
+  .lang-switch {
+    position: absolute;
+    right: clamp(18px, 4.6vw, 64px);
+    bottom: clamp(18px, 4.2vh, 46px);
+    z-index: 6;
+
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+    padding: 4px;
+    pointer-events: auto;
+
+    background-color: rgba(3, 16, 26, 0.28);
+    border: 1px solid rgba(0, 255, 255, 0.30);
+    border-radius: 0;
+    -webkit-backdrop-filter: blur(7px) saturate(150%);
+    backdrop-filter: blur(7px) saturate(150%);
+    box-shadow:
+      0 0 14px rgba(0, 255, 255, 0.08),
+      inset 0 0 12px rgba(0, 255, 255, 0.04);
+  }
+
+  .lang-switch::before,
+  .lang-switch::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border: 1px solid rgba(0, 255, 255, 0.55);
+  }
+
+  .lang-switch::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+  .lang-switch::after  { right: -1px; bottom: -1px; border-left: 0; border-top: 0; }
+
+  .lang-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    padding: 7px 8px 6px;
+    border-radius: 0;
+
+    font-family: 'Press Start 2P', 'Zpix', 'Courier New', monospace;
+    font-size: 9px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    color: rgba(150, 232, 255, 0.50);
+
+    background-color: rgba(0, 40, 56, 0.18);
+    border: 1px solid rgba(0, 255, 255, 0.14);
+    box-shadow: none;
+
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+    font-smooth: never;
+    text-rendering: geometricPrecision;
+
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      color 0.2s ease,
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .lang-btn:hover,
+  .lang-btn:focus-visible {
+    outline: none;
+    color: #eafcff;
+    border-color: rgba(0, 255, 255, 0.55);
+    box-shadow: 0 0 12px rgba(0, 255, 255, 0.18);
+  }
+
+  .lang-btn.is-active {
+    color: #021018;
+    background-color: rgba(0, 255, 255, 0.82);
+    border-color: rgba(0, 255, 255, 0.95);
+    box-shadow:
+      0 0 16px rgba(0, 255, 255, 0.35),
+      inset 0 0 8px rgba(255, 255, 255, 0.35);
+  }
+
+  .lang-btn.is-active:hover,
+  .lang-btn.is-active:focus-visible {
+    color: #021018;
+  }
+
+  /* ============================================================
+     载入层：这一页没有外部模型，只在首帧编译完着色器后淡出
+     ============================================================ */
+  #loader {
+    position: fixed;
+    inset: 0;
+    z-index: 9;
+    display: grid;
+    place-content: center;
+    gap: 18px;
+    background: #02030a;
+    transition: opacity 1.1s ease, visibility 1.1s;
+  }
+
+  #loader.done { opacity: 0; visibility: hidden; }
+
+  #loader .bar {
+    position: relative;
+    width: 240px;
+    height: 1px;
+    background: rgba(120, 200, 255, 0.16);
+    overflow: hidden;
+  }
+
+  #loader .bar i {
+    position: absolute;
+    inset: 0;
+    transform: scaleX(0);
+    transform-origin: left center;
+    background: linear-gradient(90deg, #0a6cff, var(--cyan), var(--violet));
+    box-shadow: 0 0 12px rgba(0, 255, 255, 0.6);
+    transition: transform 0.45s ease;
+  }
+
+  #loader .err {
+    display: none;
+    max-width: 540px;
+    margin: 6px auto 0;
+    padding: 0 24px;
+    text-align: center;
+    font-size: 12px;
+    line-height: 2;
+    letter-spacing: 0.02em;
+    color: #ff9d9d;
+  }
+
+  #loader .err code {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 11.5px;
+    color: #ffd7d7;
+  }
+
+  @media (max-width: 720px) {
+    .hud { top: 16px; }
+    .hud--left  { left: 14px; }
+    .hud--right { right: 14px; }
+    .nav-btn { font-size: 9px; padding: 11px 13px 10px; letter-spacing: 0.12em; }
+    .tag { font-size: 8px; padding: 11px 11px 10px; letter-spacing: 0.12em; }
+    .hint { left: 14px; bottom: 54px; font-size: 8px; }
+    .lang-switch { right: 14px; bottom: 16px; gap: 3px; padding: 3px; }
+    .lang-btn { font-size: 8px; padding: 6px 7px 5px; letter-spacing: 0.1em; }
+    #loader .bar { width: 180px; }
+  }
+</style>
+</head>
+<body>
+
+  <canvas id="stage"></canvas>
+
+  <div class="vignette"></div>
+
+  <!-- 返回首页（左上）：这是全页唯一会跳走的按钮 -->
+  <nav class="hud hud--left" aria-label="Back to home" data-i18n-aria="nav.backLabel">
+    <a class="nav-btn" href="./" id="nav-home" data-i18n="nav.back">&larr; HOME</a>
+  </nav>
+
+  <!-- 右上：作品编号标签（不可点） -->
+  <div class="hud hud--right">
+    <span class="tag"><span data-i18n="works.tag">ART WORKS · 01</span><i aria-hidden="true"></i></span>
+  </div>
+
+  <!-- 左下：操作提示 -->
+  <p class="hint" data-i18n="works.hint">MOVE · CLICK</p>
+
+  <!-- 右下：语言开关（与首页共用同一个 localStorage 键，互相同步） -->
+  <div class="lang-switch" id="lang-switch" role="group" aria-label="Lingua / Language">
+    <button type="button" class="lang-btn is-active" data-lang="en" aria-pressed="true">EN</button>
+    <button type="button" class="lang-btn" data-lang="it" aria-pressed="false">IT</button>
+  </div>
+
+  <div id="loader">
+    <div class="bar"><i id="bar"></i></div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+    /* ==========================================================================
+       Art Works · 能量脊柱（Spine / Energy Skeleton）
+       --------------------------------------------------------------------------
+       技术栈：Three.js r160 (ESM) + 原生 GLSL + UnrealBloomPass（和首页同一套后期链）
+
+       画面由三样东西组成，全部是代码生成的，不加载任何模型/贴图：
+         ① 脊柱曲线：一条 CatmullRomCurve3，每帧重写 24 个控制点
+              rest(t)         静止的 S 形骨架
+            + bend(t)         鼠标 → 悬臂梁形变（根部钉死、梢部自由）
+            + wave(t, time)   两层驻波 + 两层行波 → 有机波动（Organic Wave）
+         ② 骨节：22 个「外环 + 内环 + 四根外刺」的合并几何，按曲线切向摆位并自转
+         ③ 能量髓：~900 个加法混合的点，沿曲线螺旋缠绕 → 一条发光的神经束
+         最后整幅画面过一遍 Bloom，青 → 紫罗兰，黑底不抬灰。
+
+       为什么弯曲用悬臂梁挠曲线 (3t² − t³)/2 而不是直接 lerp：
+         这条曲线的根部值和一阶导都是 0，意味着脊柱底端是"钉死"的，
+         弯曲只能是自下而上逐节生长出来，正是脊椎被外力压弯的观感；
+         直接插值会变成整条平移，看起来像一根被拖走的绳子，没有骨骼感。
+       ========================================================================== */
+
+    import * as THREE from 'three';
+    import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+    /* ==========================================================================
+       0. 配置（所有可调参数集中在这里，不散落在函数体里）
+       ========================================================================== */
+
+    const IS_MOBILE = matchMedia('(max-width: 720px)').matches;
+    // 系统开了"减少动态效果"就降速降幅：前庭敏感的人不该被这条脊椎甩到
+    const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const CONFIG = {
+      spine: {
+        length:   IS_MOBILE ? 9.2 : 10.4,    // 脊柱总长（世界单位）
+        bones:    IS_MOBILE ? 16 : 20,      // 骨节数量
+        samples:  24,                       // 曲线控制点数（每帧原地重写）
+        restSway: 0.55,                     // 静止 S 形的横向摆幅
+      },
+
+      // 鼠标 → 弯曲：一个二维阻尼弹簧，见第 8 节
+      bend: {
+        stiff: IS_MOBILE ? 26 : 34,   // 刚度：越大越跟手、越硬
+        damp:  7.6,                   // 阻尼：越小越"果冻"，会多荡几下
+        gainX: IS_MOBILE ? 1.9 : 2.4, // 左右摆幅
+        gainZ: IS_MOBILE ? 1.4 : 1.8, // 前后摆幅（透视里读作钻进/钻出屏幕）
+      },
+
+      wave: {
+        amp:   REDUCED ? 0.16 : 0.34, // 有机波振幅
+        speed: REDUCED ? 0.35 : 1.0,  // 时间缩放
+      },
+
+      // 能量髓：沿曲线缠绕的发光点
+      cord: {
+        count:  IS_MOBILE ? 620 : 900,
+        turns:  3.2,     // 全程绕几圈
+        radius: 0.085,   // 缠绕半径
+        size:   0.021,   // 世界尺寸（运行时按投影换算成像素）
+      },
+
+      colors: {
+        cyan:    '#00ccff',  // 底部：冰青（比 #00ffff 深一档，否则'骨节+泛光'会一起烧成白）
+        violet:  '#a45cff',  // 顶部：紫罗兰
+        magenta: '#ff3ba7',  // 能量脉冲：洋红
+        white:   '#eafcff',  // 白热内核
+      },
+
+      bloom: { strength: 0.95, radius: 0.60, threshold: 0.22 },
+    };
+
+    /* ==========================================================================
+       1. DOM 引用
+       ========================================================================== */
+
+    const canvas   = document.getElementById('stage');
+    const elLoader = document.getElementById('loader');
+    const elBar    = document.getElementById('bar');
+    const elErr    = document.getElementById('err');
+
+    /** 载入层上的报错：WebGL 起不来时至少让用户看到原因，而不是一片黑 */
+    function fail(msg) {
+      elBar.parentElement.style.display = 'none';
+      elErr.style.display = 'block';
+      elErr.innerHTML = msg;
+    }
+
+    /* ==========================================================================
+       2. 渲染器 / 场景 / 相机
+       --------------------------------------------------------------------------
+       和首页保持一致的三条：
+         · pixelRatio 钳在 2（移动端 1.75）—— Bloom 的采样成本按面积走
+         · 清除色必须是纯黑：进 RenderTarget 后按线性值处理，
+           带一点蓝都会被 ACES + sRGB 放大成灰雾（首页踩过这个坑）
+         · tone mapping 交给最后的 OutputPass，这里只设定模式
+       ========================================================================== */
+
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: false,       // 后期链里 MSAA 不作用于 RenderTarget，不如把 dpr 拉高
+        alpha: false,
+        powerPreference: 'high-performance',
+        stencil: false,
+      });
+    } catch (err) {
+      fail('WebGL 初始化失败：' + (err && err.message ? err.message : '未知错误') +
+           '<br><br>请换用新版 Chrome / Edge / Safari，或检查是否关闭了硬件加速。');
+      throw err;
+    }
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.75 : 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x000000, 1);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    // 曝光压到 1 以下：骨节是自发光材质，1.1 会让环心直接烧成白色，
+    // Bloom 再叠一层就整条糊掉了（实测 1.1 时整幅画面都在发光）
+    renderer.toneMappingExposure = 0.95;
+
+    const scene = new THREE.Scene();
+    // 这里不挂 scene.fog：骨节与能量髓都是自定义 ShaderMaterial，
+    // 不包含 fog 着色块，挂了也不会生效 —— 深度层次交给 Bloom 与相机景深错觉。
+
+    /* 相机：右前方略微俯视的 3/4 视角。
+       正对着看时骨节的环面是水平的，从正前方只能看到一条条横线，
+       整条脊柱会读成"一叠横条"；偏十来度就同时看得到环口和椎体侧面。 */
+    const CAM_BASE = { x: 3.6, y: 2.2, z: 16.4 };
+    let camScale = 1;   // 窄屏整体后退时按同比例缩放 x / y 偏移
+
+    const camera = new THREE.PerspectiveCamera(
+      38,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      120
+    );
+    camera.position.set(CAM_BASE.x, CAM_BASE.y, CAM_BASE.z);
+    camera.lookAt(0, 0, 0);
+
+    // 场景里没有任何 PBR 材质（骨节是自定义着色器），所以不需要灯光与环境贴图
+    const root = new THREE.Group();
+    scene.add(root);
+
+
+    /* ==========================================================================
+       3. 骨节几何：一次合并，所有骨节共用
+       --------------------------------------------------------------------------
+       单个骨节 = 外环（椎体） + 内环（髓孔） + 四根外刺（棘突），
+       全部由 THREE 内置几何体拼出来，再用 mergeGeometries 合成一份：
+         · 22 个骨节共享同一份 BufferGeometry → 显存只占一份
+         · 合并要求属性完全一致（position / normal / uv 且同为 indexed），
+           Torus 与 Cone 都满足，所以不会触发 "attribute mismatch"
+       坐标系约定：环平面放在 XZ，**局部 +Y = 脊柱轴向**。
+       摆位时只要把局部 +Y 对齐曲线切向，整串骨节就自然串起来了。
+       ========================================================================== */
+
+    function buildVertebraGeometry() {
+      const parts = [];
+
+      // ① 外环：半径 0.42、管径 0.055。管够细，Bloom 才会把它晕成一圈光晕
+      const outer = new THREE.TorusGeometry(0.42, 0.068, 8, 40);
+      outer.rotateX(Math.PI / 2);   // 环平面 XY → XZ，轴向变成 +Y
+      parts.push(outer);
+
+      // ② 内环：髓孔。细一圈、矮一点，给环心留出层次，不然中心是个空心洞
+      const inner = new THREE.TorusGeometry(0.2, 0.03, 6, 28);
+      inner.rotateX(Math.PI / 2);
+      parts.push(inner);
+
+      // ③ 四根外刺：45° / 135° / 225° / 315° —— 避开正前正后，侧看才有剪影
+      const up = new THREE.Vector3(0, 1, 0);
+      const dir = new THREE.Vector3();
+      const quat = new THREE.Quaternion();
+      for (let i = 0; i < 4; i++) {
+        const a = Math.PI * 0.25 + i * Math.PI * 0.5;
+        dir.set(Math.cos(a), 0, Math.sin(a));
+
+        const spike = new THREE.ConeGeometry(0.048, 0.3, 5);
+        // 圆锥默认朝 +Y：先转到径向后，再推到外环边缘
+        quat.setFromUnitVectors(up, dir);
+        spike.applyQuaternion(quat);
+        spike.translate(dir.x * 0.57, 0, dir.z * 0.57);
+        parts.push(spike);
+      }
+
+      const merged = mergeGeometries(parts, false);
+      // 兜底：万一合并失败（例如未来 three 改了属性布局），至少还有主环可看
+      const geo = merged || parts[0];
+      geo.computeBoundingSphere();
+      return geo;
+    }
+
+    /* ==========================================================================
+       4. 脊柱曲线
+       --------------------------------------------------------------------------
+       控制点数组只创建一次，每帧原地 .set() 改写，不重新 new ——
+       否则每帧都要被 GC 收掉 24 个 Vector3 和一条曲线。
+       曲线类型用默认的 centripetal：控制点间距被鼠标拉得不均匀时不会打结。
+       ========================================================================== */
+
+    const SAMPLE_COUNT = CONFIG.spine.samples;
+    const controlPoints = Array.from({ length: SAMPLE_COUNT }, () => new THREE.Vector3());
+    const spineCurve = new THREE.CatmullRomCurve3(controlPoints, false, 'centripetal');
+
+    const UP = new THREE.Vector3(0, 1, 0);
+
+    /**
+     * 悬臂梁挠曲线：根部（t=0）位移与斜率都是 0，梢部（t=1）自由
+     * 由 y = P·x²(3L − x) / (6EI) 归一化而来
+     * @param {number} t 0..1
+     * @returns {number} 0..1 的形变权重（根部刚性、梢部最软）
+     */
+    function cantilever(t) {
+      return (3 * t * t - t * t * t) * 0.5;
+    }
+
+    /**
+     * 每帧重写曲线控制点
+     * @param {number} time 秒
+     * @param {THREE.Vector2} bend 当前弯曲量（x = 左右 / y = 前后）
+     */
+    function updateSpine(time, bend) {
+      const L = CONFIG.spine.length;
+      const sway = CONFIG.spine.restSway;
+      const w = time * CONFIG.wave.speed;
+
+      for (let i = 0; i < SAMPLE_COUNT; i++) {
+        const t = i / (SAMPLE_COUNT - 1);
+        const p = cantilever(t);          // 形变权重
+
+        // ① 静止骨架：一条很浅的 S（两段反向正弦），避免死板的直棍
+        let x = sway * Math.sin(t * Math.PI * 1.15 + 0.15) * 0.55;
+        let z = sway * 0.40 * Math.sin(t * Math.PI * 0.85 - 0.40);
+
+        // ② 鼠标弯曲：根部锁死，越往梢部越明显
+        x += bend.x * CONFIG.bend.gainX * p;
+        z += bend.y * CONFIG.bend.gainZ * p;
+
+        // ③ 有机波：两层驻波 + 两层行波，四个方向两两不共面。
+        //    如果都在同一个平面里，波峰会周期性地连成一条直线，
+        //    整条脊柱会在那一瞬间像被拨动的琴弦 —— 那就没有"有机"感了。
+        const amp = CONFIG.wave.amp * p;
+        x += Math.sin(t * 5.1 - w * 2.3) * amp * 0.55;
+        z += Math.cos(t * 4.2 - w * 1.7) * amp * 0.45;
+        x += Math.sin(t * 9.4 + w * 1.1) * amp * 0.17;
+        z += Math.cos(t * 7.3 - w * 0.9) * amp * 0.15;
+
+        // ④ 呼吸：整条脊柱轻微伸缩（±1.2%），静止时也有生命感
+        const y = (t - 0.5) * L * (1 + Math.sin(w * 0.8) * 0.012);
+
+        controlPoints[i].set(x, y, z);
+      }
+
+      /* 这里不调用 updateArcLengths()：下面的取点全部用 getPoint(u) / getTangent(u)，
+         那是按控制点解析计算的（O(1)），不依赖弧长表。
+         一旦改成 getPointAt()（等距取点），就必须每帧重建弧长表，
+         900 个点 × 120 段会很贵 —— 这也是"均匀 u"在这里足够用的原因：
+         脊柱几乎是一条竖直直线，u 均匀 ≈ 弧长均匀。 */
+    }
+
+
+    /* ==========================================================================
+       5. 骨节材质（自定义着色器，无光照）
+       --------------------------------------------------------------------------
+       为什么不用 MeshStandardMaterial：
+         ① 场景里没有灯也没有 HDRI，PBR 材质会黑成剪影；
+         ② 能量骨骼要的是"自发光外壳"，不是"被照亮的塑料"——
+            菲涅尔 + 环向流光 + 脉冲过曝，这三样用 PBR 反而更难调；
+         ③ 每个骨节要独立的 uTint / uPulse，共用一份着色器源码即可
+            （three 按源码缓存 program，22 个材质只编译一次）。
+       uSurge 用同一个 uniform 对象在 22 个材质之间共享：改一次，全体生效。
+       ========================================================================== */
+
+    const sharedSurge = { value: 0 };
+
+    const BONE_VERT = /* glsl */ `
+      varying vec3  vNormalV;
+      varying vec3  vViewDir;
+      varying float vAngle;
+      varying float vRadius;
+
+      void main() {
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+
+        vNormalV = normalize(normalMatrix * normal);
+        vViewDir = normalize(-mvPosition.xyz);
+        // 环平面在 XZ：atan2 就是环上角度，用来画"绕着骨节转的光斑"
+        vAngle   = atan(position.z, position.x);
+        vRadius  = length(position.xz);
+
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `;
+
+    const BONE_FRAG = /* glsl */ `
+      uniform vec3  uColLow;    // 底部颜色（冰青）
+      uniform vec3  uColHigh;   // 顶部颜色（紫罗兰）
+      uniform vec3  uColPulse;  // 脉冲颜色（洋红）
+      uniform float uTime;
+      uniform float uTint;      // 0 = 底部 / 1 = 顶部
+      uniform float uPulse;     // 0..1 当前被能量脉冲击中的强度
+      uniform float uSurge;     // 0..1 点击后的整体涌动
+      uniform float uFade;      // 两端渐暗：脊柱的头尾本来就不该和中间一样亮
+
+      varying vec3  vNormalV;
+      varying vec3  vViewDir;
+      varying float vAngle;
+      varying float vRadius;
+
+      void main() {
+        vec3 N = normalize(vNormalV);
+        vec3 V = normalize(vViewDir);
+
+        // 菲涅尔：正面暗、掠射角亮 —— 看着像一层通电的外壳
+        float fres = 1.0 - clamp(dot(N, V), 0.0, 1.0);
+        float rim  = pow(fres, 2.1);
+
+        // 环向光斑：8 个亮节绕环缓慢旋转，'能量在骨节里流动'的主要读数
+        float spin = 0.5 + 0.5 * sin(vAngle * 8.0 - uTime * 2.6);
+        // 细密扫描线：给表面一点 CRT 质感，幅度很小，只为破掉塑料感
+        float scan = 0.5 + 0.5 * sin(vRadius * 42.0 - uTime * 7.0);
+
+        vec3 base = mix(uColLow, uColHigh, clamp(uTint, 0.0, 1.0));
+        // 亮度刻意压在 1 以下：超过 1 的部分会先被 ACES 压平、再被 Bloom 晕开，
+        // 骨节的结构（内环、外刺）就全糊成一根白管子了
+        vec3 col  = base * (0.13 + 0.85 * rim + 0.18 * spin + 0.05 * scan);
+
+        // 能量脉冲扫过：只有被扫中的那一节允许过曝，交给 Bloom 晕成一团光
+        col += uColPulse * uPulse * 0.62 * (0.45 + 0.55 * spin);
+
+        // 点击涌动：整体提亮（1.0 → 1.45）
+        col *= 1.0 + uSurge * 0.45;
+
+        // 两端渐暗：否则最底下那几节会和泛光一起烧成一团白雾
+        col *= uFade;
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `;
+
+    /* —— 实例化骨节 ——
+       位置/朝向每帧由曲线算（见第 7 节），这里只负责把东西建出来。 */
+    const vertebraGeo = buildVertebraGeometry();
+    const BONE_COUNT  = CONFIG.spine.bones;
+    const bones = [];
+
+    for (let i = 0; i < BONE_COUNT; i++) {
+      const t = i / (BONE_COUNT - 1);
+
+      const mat = new THREE.ShaderMaterial({
+        vertexShader:   BONE_VERT,
+        fragmentShader: BONE_FRAG,
+        uniforms: {
+          uColLow:   { value: new THREE.Color(CONFIG.colors.cyan) },
+          uColHigh:  { value: new THREE.Color(CONFIG.colors.violet) },
+          uColPulse: { value: new THREE.Color(CONFIG.colors.magenta) },
+          uTime:     { value: 0 },
+          uTint:     { value: t },
+          uPulse:    { value: 0 },
+          uSurge:    sharedSurge,
+          // 两端渐暗（0.55 → 1.0 → 0.55）
+          uFade:     { value: 0.55 + 0.45 * Math.sin(t * Math.PI) },
+        },
+      });
+
+      const mesh = new THREE.Mesh(vertebraGeo, mat);
+      // 中间粗、两端细：像一具真骨架的胸椎段（比例差太大就成糖葫芦了）
+      mesh.scale.setScalar(0.86 + 0.36 * Math.sin(t * Math.PI));
+
+      root.add(mesh);
+      bones.push({ mesh, mat, t });
+    }
+
+    /* ==========================================================================
+       6. 能量髓：沿曲线螺旋缠绕的发光点
+       --------------------------------------------------------------------------
+       骨节之间如果什么都不连，读起来就是一叠飘着的圈；
+       这条"神经束"负责把 22 节串成一条连续的脊椎。
+       实现上不用 TubeGeometry（每帧重建顶点太贵），而是用点：
+         · 900 个加法混合的点，位置每帧从曲线重新采样
+         · 每点自带固定相位 → 天然形成螺旋缠绕（DNA 那种交错感）
+         · 沿 t 方向还有一道流动亮度 → 能量从尾端涌向顶端
+       点的位置每帧全量重写（900 × 3 个 float），比重建几何省得多。
+       ========================================================================== */
+
+    const CORD_COUNT = CONFIG.cord.count;
+    const cordPhase  = new Float32Array(CORD_COUNT);  // 缠绕相位（固定）
+    const cordRand   = new Float32Array(CORD_COUNT);  // 尺寸/亮度随机（固定）
+    const cordT      = new Float32Array(CORD_COUNT);  // 曲线参数（固定）
+    const cordR      = new Float32Array(CORD_COUNT);  // 离轴的半径系数（固定）
+
+    for (let i = 0; i < CORD_COUNT; i++) {
+      const t = i / (CORD_COUNT - 1);
+      cordT[i]     = t;
+      cordPhase[i] = t * Math.PI * 2 * CONFIG.cord.turns + Math.random() * 1.2;
+      cordRand[i]  = Math.random();
+      // 半径带一点随机，缠绕才不像一根标准的弹簧
+      cordR[i]     = 0.45 + Math.random() * 0.85;
+    }
+
+    const cordPositions = new Float32Array(CORD_COUNT * 3);
+    const cordGeo = new THREE.BufferGeometry();
+    cordGeo.setAttribute('position', new THREE.BufferAttribute(cordPositions, 3));
+    cordGeo.setAttribute('aT',    new THREE.BufferAttribute(cordT, 1));
+    cordGeo.setAttribute('aRand', new THREE.BufferAttribute(cordRand, 1));
+
+
+    const CORD_VERT = /* glsl */ `
+      attribute float aT;
+      attribute float aRand;
+
+      uniform float uTime;
+      uniform float uSize;       // 世界尺寸
+      uniform float uProjScale;  // 世界尺寸 → 像素 的换算系数（含 dpr）
+      uniform float uSurge;
+
+      varying float vT;
+      varying float vGlow;
+
+      void main() {
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+
+        // 透视点径：世界尺寸 → 像素；上限 24px，近处才不会糊成一团
+        float size = uSize * uProjScale * (0.45 + 0.85 * aRand) / max(0.6, -mvPosition.z);
+        gl_PointSize = clamp(size, 1.0, 24.0);
+
+        vT = aT;
+        // 沿脊柱向上流动的亮度波：速度远快于骨节脉冲，读作"能量在跑"
+        float flow = 0.5 + 0.5 * sin(aT * 42.0 - uTime * 5.6 + aRand * 6.2831);
+        vGlow = mix(0.28, 1.0, flow) * (1.0 + uSurge * 0.9);
+      }
+    `;
+
+    const CORD_FRAG = /* glsl */ `
+      uniform vec3 uColLow;
+      uniform vec3 uColHigh;
+      uniform vec3 uColWhite;
+
+      varying float vT;
+      varying float vGlow;
+
+      void main() {
+        // 圆形软点：中心白热、边缘淡出。不裁的话加法混合会显示成一个个方块
+        vec2 uv = gl_PointCoord - 0.5;
+        float d = length(uv) * 2.0;        // 0 = 圆心 / 1 = 边缘
+        if (d > 1.0) discard;
+
+        float core = pow(1.0 - d, 2.2);
+        float hot  = pow(1.0 - d, 8.0);
+
+        vec3 col = mix(uColLow, uColHigh, vT);
+        // 几百个点在轴线上层层叠加，单点必须很暗：
+        // 叠起来才是一条发亮的髓，而不是一根白塑料管
+        col  = col * (0.14 + 0.62 * core) * vGlow;
+        col += uColWhite * hot * 0.24;     // 白热内核（压低，别让髓盖过骨节）
+
+        gl_FragColor = vec4(col, core * 0.75);
+      }
+    `;
+
+    const cordMaterial = new THREE.ShaderMaterial({
+      vertexShader:   CORD_VERT,
+      fragmentShader: CORD_FRAG,
+      uniforms: {
+        uColLow:   { value: new THREE.Color(CONFIG.colors.cyan) },
+        uColHigh:  { value: new THREE.Color(CONFIG.colors.violet) },
+        uColWhite: { value: new THREE.Color(CONFIG.colors.white) },
+        uTime:     { value: 0 },
+        uSize:     { value: CONFIG.cord.size },
+        uProjScale:{ value: 1000 },
+        uSurge:    sharedSurge,
+      },
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,     // 加法混合的亮点不能写深度，否则后面的点会被挡掉
+      depthTest: true,
+    });
+
+    const cord = new THREE.Points(cordGeo, cordMaterial);
+    // 点云每帧整体移动，逐帧算包围球不如直接关掉剔除
+    cord.frustumCulled = false;
+    root.add(cord);
+
+    /* ==========================================================================
+       7. 每帧摆位：骨节 + 能量髓
+       ========================================================================== */
+
+    const tmpPoint   = new THREE.Vector3();
+    const tmpTangent = new THREE.Vector3();
+    const tmpQuat    = new THREE.Quaternion();
+    const tmpRoll    = new THREE.Quaternion();
+    const tmpSide    = new THREE.Vector3();
+    const tmpBasis   = new THREE.Vector3();
+
+    /**
+     * 把骨节摆到曲线上
+     * @param {number} time 秒
+     * @param {number} energy 0..1 涌动强度（影响脉冲亮度）
+     */
+    function placeBones(time, energy) {
+      for (let i = 0; i < bones.length; i++) {
+        const bone = bones[i];
+        const t = bone.t;
+
+        // ① 位置
+        spineCurve.getPoint(t, tmpPoint);
+        bone.mesh.position.copy(tmpPoint);
+
+        // ② 朝向：局部 +Y 对齐曲线切向
+        spineCurve.getTangent(t, tmpTangent).normalize();
+        tmpQuat.setFromUnitVectors(UP, tmpTangent);
+
+        // ③ 自转：沿脊柱递增的螺旋 + 一层缓慢摆动。
+        //    四根外刺若永远朝同一侧，22 节会像同一个模子里刻出来的。
+        const roll = t * 2.4 + Math.sin(time * 0.55 + t * 3.4) * 0.32;
+        tmpRoll.setFromAxisAngle(UP, roll);  // 局部 Y 就是切向 → 绕自身轴旋转
+        bone.mesh.quaternion.copy(tmpQuat).multiply(tmpRoll);
+
+        // ④ 能量脉冲：一道亮带从尾端扫向头顶。
+        //    正弦取 8 次方 → 波峰很窄，扫过去是"一道电流"而不是整片发亮。
+        const phase = (t - time * 0.32) * Math.PI * 2;
+        const pulse = Math.pow(0.5 + 0.5 * Math.sin(phase), 8);
+
+        bone.mat.uniforms.uTime.value  = time;
+        bone.mat.uniforms.uPulse.value = pulse * (0.75 + energy * 0.9);
+      }
+    }
+
+    /**
+     * 重算能量髓的 900 个点：沿曲线取点，再按固定相位在垂直平面上绕出去
+     * @param {number} time 秒
+     */
+    function placeCord(time) {
+      for (let i = 0; i < CORD_COUNT; i++) {
+        const t = cordT[i];
+
+        spineCurve.getPoint(t, tmpPoint);
+        spineCurve.getTangent(t, tmpTangent).normalize();
+
+        // 以切向为轴构造两个正交基向量（切向 × UP 再叉乘回去）
+        tmpSide.crossVectors(tmpTangent, UP);
+        if (tmpSide.lengthSq() < 1e-8) tmpSide.set(1, 0, 0);  // 切向与 UP 共线的兜底
+        tmpSide.normalize();
+        tmpBasis.crossVectors(tmpTangent, tmpSide).normalize();
+
+        const a = cordPhase[i];
+        const r = CONFIG.cord.radius * cordR[i];
+        const cx = Math.cos(a) * r;
+        const cy = Math.sin(a) * r;
+
+        const o = i * 3;
+        cordPositions[o]     = tmpPoint.x + tmpSide.x * cx + tmpBasis.x * cy;
+        cordPositions[o + 1] = tmpPoint.y + tmpSide.y * cx + tmpBasis.y * cy;
+        cordPositions[o + 2] = tmpPoint.z + tmpSide.z * cx + tmpBasis.z * cy;
+      }
+
+      cordGeo.attributes.position.needsUpdate = true;
+      cordMaterial.uniforms.uTime.value = time;
+    }
+
+
+    /* ==========================================================================
+       8. 鼠标 → 弯曲（阻尼弹簧）
+       --------------------------------------------------------------------------
+       直接把鼠标位置乘个系数当形变会"太听话"：指针一停，曲线立刻僵死。
+       这里用二阶阻尼弹簧去追目标值：
+         · 弹簧天生会过冲 → 手停下来以后脊柱还在荡，这就是"物理感"的来源
+         · 阻尼取临界阻尼的 0.65 倍左右，荡两三下收住，不会晃成钟摆
+       时间步长全部按 dt 缩放，120Hz / 60Hz 屏手感一致；
+       dt 在 animate() 里钳到 1/30 秒，切走标签页再回来也不会把弹簧炸飞。
+       ========================================================================== */
+
+    const clock = new THREE.Clock();
+
+    const pointer = new THREE.Vector2(0, 0);   // 目标值（-1..1）
+    const bendPos = new THREE.Vector2(0, 0);   // 当前位移（喂给 updateSpine）
+    const bendVel = new THREE.Vector2(0, 0);   // 当前速度
+
+    let lastPointerAt = 0;   // 上次真实移动的时刻（秒）
+    let hasPointer = false;  // 用户是否已经动过鼠标 / 手指
+
+    /** 归一化指针：屏幕中心 = (0, 0)，四边 = ±1 */
+    function setPointerFromEvent(ev) {
+      pointer.set(
+        (ev.clientX / window.innerWidth) * 2 - 1,
+        (ev.clientY / window.innerHeight) * 2 - 1
+      );
+      hasPointer = true;
+      lastPointerAt = clock.getElapsedTime();
+    }
+
+    window.addEventListener('pointermove', setPointerFromEvent, { passive: true });
+    window.addEventListener('pointerdown', setPointerFromEvent, { passive: true });
+
+    /**
+     * 推进弹簧
+     * @param {number} dt 秒（已钳位）
+     * @param {number} time 秒
+     */
+    function updateBend(dt, time) {
+      // 空闲 2.5 秒后，目标点沿李萨如曲线自己游走：
+      // 画面永远不会"冻住"，但也绝不会抢走用户的控制权
+      if (!hasPointer || time - lastPointerAt > 2.5) {
+        const k = REDUCED ? 0.35 : 1;
+        pointer.set(
+          Math.sin(time * 0.31) * 0.55 * k,
+          Math.cos(time * 0.23) * 0.45 * k
+        );
+      }
+
+      // 半隐式欧拉：先积速度、再积位置。比显式欧拉稳定得多，
+      // 刚度开到 34 也不会发散（显式欧拉在这个刚度下会抖）
+      bendVel.x += ((pointer.x - bendPos.x) * CONFIG.bend.stiff - bendVel.x * CONFIG.bend.damp) * dt;
+      bendVel.y += ((pointer.y - bendPos.y) * CONFIG.bend.stiff - bendVel.y * CONFIG.bend.damp) * dt;
+
+      bendPos.x += bendVel.x * dt;
+      bendPos.y += bendVel.y * dt;
+    }
+
+    /* ==========================================================================
+       9. 点击 → 能量涌动（surge）
+       --------------------------------------------------------------------------
+       surge 是一个 0..1 的标量：按下瞬间加上去，然后按时间线性回落。
+       它同时驱动三处，缺一处就会像"调错了曝光"：
+         ① 骨节整体提亮（uSurge）
+         ② 能量髓的点变亮（同一个 uniform 对象）
+         ③ Bloom 强度上调
+       ========================================================================== */
+
+    let surge = 0;
+
+    function triggerSurge() {
+      surge = Math.min(1, surge + 0.8);
+    }
+
+    window.addEventListener('pointerdown', triggerSurge, { passive: true });
+
+    /* ==========================================================================
+       10. 后期处理链
+       RenderPass → UnrealBloomPass（泛光）→ Grade（暗角/颗粒）→ OutputPass
+       --------------------------------------------------------------------------
+       和首页同一条链，参数按"自发光几何"重调：
+         · threshold 0.16 比首页低得多 —— 骨节主体本来就在 0.6~1.2 亮度区间，
+           门槛太高就只剩最亮的那几个点起晕，能量感会断掉
+         · strength 1.05 起步，涌动时再乘 1.9
+         · Grade 只做很轻的暗角 + 随亮度调制的颗粒（固定振幅会把黑底抬灰）
+       ========================================================================== */
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      CONFIG.bloom.strength,
+      CONFIG.bloom.radius,
+      CONFIG.bloom.threshold
+    );
+    composer.addPass(bloomPass);
+
+    const GradeShader = {
+      uniforms: {
+        tDiffuse: { value: null },
+        uTime:    { value: 0 },
+        uGrain:   { value: 0.028 },
+      },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        uniform sampler2D tDiffuse;
+        uniform float uTime;
+        uniform float uGrain;
+        varying vec2 vUv;
+
+        float hash(vec2 p) {
+          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+        }
+
+        void main() {
+          vec4 texel = texture2D(tDiffuse, vUv);
+          vec3 col = texel.rgb;
+
+          // 在线性空间再压一次边角（CSS 那层 .vignette 是屏幕空间，两者叠加才有厚度）
+          float d = length(vUv - 0.5);
+          col *= 1.0 - smoothstep(0.36, 0.98, d) * 0.30;
+
+          // 颗粒振幅跟着局部亮度走：线性空间里固定的 ±0.03
+          // 经 sRGB 编码后相当于 ±48 级，会把纯黑背景整体点亮
+          float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+          float g = hash(vUv * vec2(1920.0, 1080.0) + fract(uTime * 0.7) * 137.0) - 0.5;
+          col += g * uGrain * clamp(lum * 3.0, 0.0, 1.0) * (0.4 + 0.6 * (1.0 - d));
+
+          gl_FragColor = vec4(col, texel.a);
+        }
+      `,
+    };
+
+    const gradePass = new ShaderPass(GradeShader);
+    composer.addPass(gradePass);
+
+    // ACES tone mapping + sRGB 编码，必须是最后一道
+    composer.addPass(new OutputPass());
+
+
+    /* ==========================================================================
+       11. 响应式
+       --------------------------------------------------------------------------
+       竖屏手机要单独处理：fov 是纵向的，屏幕一窄，横向可视范围就只剩零点几个单位，
+       脊柱一弯，梢部会直接被切出画面。所以窄屏把相机往后拉，而不是改 fov ——
+       改 fov 会同时改变透视压缩，骨架的比例就跟着变了。
+
+       后退多少不靠"乘个手感系数"，而是直接算：
+         需要的横向半宽 FIT_HALF_WIDTH = 3.3（弯曲 2.4 + 静止摆幅 + 骨节半径）
+         距离 d 处的横向半宽 = d · tan(fov/2) · aspect
+         → d = FIT_HALF_WIDTH / (tan(fov/2) · aspect)
+       再和基准距离取较大者，并封顶 1.75 倍（否则超窄屏会把脊柱缩成一根牙签）。
+       ========================================================================== */
+
+    let viewDist = CAM_BASE.z;         // 相机基准距离（窄屏会被 onResize 拉远）
+    const FIT_HALF_WIDTH = 3.3;        // 横向必须留出的半宽（世界单位）
+
+    function onResize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+
+      // tan(fov/2)：透视换算里反复要用，只算一次
+      const halfFovTan = Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5);
+
+      const fitZ = FIT_HALF_WIDTH / (halfFovTan * camera.aspect);
+      viewDist = Math.min(CAM_BASE.z * 1.75, Math.max(CAM_BASE.z, fitZ));
+      camScale = viewDist / CAM_BASE.z;
+      camera.position.set(CAM_BASE.x * camScale, CAM_BASE.y * camScale, viewDist);
+
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.75 : 2));
+      renderer.setSize(w, h);
+
+      // EffectComposer.setSize 会按 pixelRatio 换算并同步给每个 pass
+      if (composer.setPixelRatio) composer.setPixelRatio(renderer.getPixelRatio());
+      composer.setSize(w, h);
+
+      // 透视投影下：点尺寸（设备像素）= 世界尺寸 * (画布高/2) / tan(fov/2) / 距离
+      cordMaterial.uniforms.uProjScale.value = renderer.getPixelRatio() * (h * 0.5) / halfFovTan;
+    }
+
+    window.addEventListener('resize', onResize);
+
+    // 移动端地址栏收缩也会触发 resize，防抖一下
+    let resizeTimer = 0;
+    window.addEventListener('orientationchange', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(onResize, 220);
+    });
+
+    /* ==========================================================================
+       12. 主循环
+       ========================================================================== */
+
+    let started = false;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (!started) return;
+
+      // dt 钳在 1/30 秒：标签页切回来时 clock 里可能攒了一秒多，
+      // 直接积分会把弹簧和相机一起炸飞
+      const dt = Math.min(clock.getDelta(), 1 / 30);
+      const time = clock.getElapsedTime();
+
+      // 涌动衰减：线性回落，约 1 秒归零
+      surge = Math.max(0, surge - dt * 0.95);
+      sharedSurge.value = surge;
+
+      updateBend(dt, time);
+      updateSpine(time, bendPos);
+      placeBones(time, surge);
+      placeCord(time);
+
+      // 相机视差：跟着弯曲量走，系数必须小 —— 大了就变成"整幅画面在晃"
+      const k = Math.min(1, dt * 3.4);
+      camera.position.x += ((CAM_BASE.x * camScale + bendPos.x * 0.55) - camera.position.x) * k;
+      camera.position.y += ((CAM_BASE.y * camScale - bendPos.y * 0.35) - camera.position.y) * k;
+      camera.position.z = viewDist + Math.sin(time * 0.25) * 0.35;
+      camera.lookAt(0, 0, 0);
+
+      // 涌动时把泛光一起抬：只提亮材质不提泛光，会像曝光调错了一档
+      bloomPass.strength = CONFIG.bloom.strength * (1 + surge * 0.55);
+      gradePass.uniforms.uTime.value = time;
+
+      composer.render();
+    }
+
+
+    /* ==========================================================================
+       13. 语言开关（EN / IT）
+       --------------------------------------------------------------------------
+       这一页只有四个文案，但字典结构和首页保持一致（data-i18n / data-i18n-aria），
+       而且共用同一个 localStorage 键：首页切到 IT，点进来还是 IT。
+       ========================================================================== */
+
+    const I18N = {
+      en: {
+        'nav.back':      '← HOME',
+        'nav.backLabel': 'Back to home',
+        'works.tag':     'ART WORKS · 01',
+        'works.hint':    'MOVE · CLICK',
+      },
+      it: {
+        'nav.back':      '← HOME',
+        'nav.backLabel': 'Torna alla home',
+        'works.tag':     'OPERE · 01',
+        'works.hint':    'MUOVI · CLICCA',
+      },
+    };
+
+    const LANG_KEY = 'piano.lang';   // 与首页同一个键
+    const langButtons = Array.from(document.querySelectorAll('.lang-btn'));
+    let currentLang = 'en';
+
+    /**
+     * 应用语言：换文案、换 aria-label、换 <html lang>、同步开关
+     * @param {'en'|'it'} next
+     * @param {boolean} [silent] 初始化时为 true —— 不写回 localStorage
+     */
+    function applyLang(next, silent) {
+      const lang = I18N[next] ? next : 'en';
+      const dict = I18N[lang];
+      currentLang = lang;
+
+      document.querySelectorAll('[data-i18n]').forEach((el) => {
+        const text = dict[el.dataset.i18n];
+        if (text != null) el.textContent = text;
+      });
+
+      document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
+        const text = dict[el.dataset.i18nAria];
+        if (text != null) el.setAttribute('aria-label', text);
+      });
+
+      document.documentElement.lang = lang;
+
+      langButtons.forEach((btn) => {
+        const on = btn.dataset.lang === lang;
+        btn.classList.toggle('is-active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+
+      if (!silent) {
+        try {
+          localStorage.setItem(LANG_KEY, lang);
+        } catch (e) { /* 无痕模式 / file:// 下忽略 */ }
+      }
+
+      return lang;
+    }
+
+    langButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.lang === currentLang) return;
+        applyLang(btn.dataset.lang);
+        // 切语言也顺手涌一次电：让"状态变了"有画面回应
+        triggerSurge();
+      });
+    });
+
+    let savedLang = null;
+    try {
+      savedLang = localStorage.getItem(LANG_KEY);
+    } catch (e) { savedLang = null; }
+    applyLang(savedLang || 'en', true);
+
+    /* 键盘也能触发涌动（无障碍：不依赖鼠标） */
+    window.addEventListener('keydown', (ev) => {
+      if (ev.code !== 'Space' && ev.code !== 'Enter') return;
+      if (ev.target && ev.target.tagName === 'A') return;   // 让返回键正常跳转
+      ev.preventDefault();
+      triggerSurge();
+    });
+
+    /* ==========================================================================
+       14. 启动
+       --------------------------------------------------------------------------
+       顺序很关键：
+         ① onResize() 先把 aspect / pixelRatio / uProjScale 算对
+         ② 空跑一次曲线 + 摆位，让首帧就有东西可画
+         ③ renderer.compile() 预编译着色器 —— 少这一步，载入层淡出的瞬间
+            会看到一帧空白（编译要几十到几百毫秒，正好卡在淡出上）
+         ④ 渲染首帧 → 淡出载入层 → clock 归零开始计时
+       ========================================================================== */
+
+    function setProgress(p) {
+      elBar.style.transform = 'scaleX(' + p + ')';
+    }
+
+    try {
+      onResize();
+      updateBend(0, 0);
+      updateSpine(0, bendPos);
+      placeBones(0, 0);
+      placeCord(0);
+
+      renderer.compile(scene, camera);
+      composer.render();
+    } catch (err) {
+      console.error(err);
+      fail('场景初始化失败：' + (err && err.message ? err.message : '未知错误'));
+      throw err;
+    }
+
+    setProgress(1);
+    elLoader.classList.add('done');
+
+    clock.start();
+    started = true;
+    animate();
+  </script>
+</body>
+</html>
+
+  }

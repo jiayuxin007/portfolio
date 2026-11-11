@@ -348,9 +348,13 @@
        文字由 6.5 节末尾的 I18N 字典接管（data-i18n / data-i18n-aria），
        默认英文，切到意大利文时变成 Opere / Biografia。
        悬停时 JS 会把这两块屏幕区域换算成相机前方的世界坐标，
-       同时给粒子场注入一个定向风场（见 6.5 节）。 -->
+       同时给粒子场注入一个定向风场（见 6.5 节）。
+
+       左边的 ART WORKS 是 <a> 而不是 <button>：它现在真的会跳到 works.html
+       （能量脊柱那页）。用链接才拿得到中键新开标签页、右键复制地址、
+       以及"这是导航"的语义；样式和按钮完全共用 .nav-btn。 -->
   <nav class="hud-nav hud-nav--left" aria-label="Works" data-i18n-aria="nav.worksLabel">
-    <button type="button" class="nav-btn" id="nav-works" data-i18n="nav.works">ART WORKS</button>
+    <a class="nav-btn" id="nav-works" href="works.html" data-i18n="nav.works">ART WORKS</a>
   </nav>
   <nav class="hud-nav hud-nav--right" aria-label="About me" data-i18n-aria="nav.aboutLabel">
     <button type="button" class="nav-btn" id="nav-about" data-i18n="nav.about">ABOUT ME</button>
@@ -1696,10 +1700,12 @@
         if (hudState.target === side) hudLeave();
       });
 
-      // 不做页面跳转：点击只补一簇碎尘（这一版专注 HUD 与力场的联动）
+      /* 点击：ART WORKS 现在是真实链接（works.html），跳转交给浏览器——
+         只在跳走前补一簇碎尘，不 preventDefault，否则中键/右键菜单也会失效。
+         没有 href 的按钮（ABOUT ME）仍然只补碎尘，不跳转。 */
       el.addEventListener('click', (ev) => {
-        ev.preventDefault();
         emitTrailBurst(side, 26);
+        if (!el.getAttribute('href')) ev.preventDefault();
       });
     });
 
